@@ -1,53 +1,27 @@
 <template>
 	<main>
 		<var-app-bar
-			:title = "page.ct ? '全部番剧' : '追番周表'"
+			:title = "page.ct === 1 ? '全部番剧'
+				: page.ct ? '搜素番剧'
+					: '追番周表'"
 		>
 			<template #right>
 				<var-icon 
 					namespace = 'i'
-					:name = 'page.schedule.name'
+					:name = 'themes.name'
 					:transition = '300'
-					@click = 'page.schedule.change()'
+					@click = 'themes.change()'
 				/>
 			</template>
 		</var-app-bar>
-		<div v-if = 'page.ct'>
-		</div>
-		<div v-else>
-			<var-tabs
-				v-model:active = 'page.schedule.ct'
-			>
-				<var-tab v-for = "i in [
-					'一',
-					'二',
-					'三',
-					'四',
-					'五',
-					'六',
-					'日'
-				]">{{ i }}</var-tab>
-			</var-tabs>
-			<TransitionGroup
-				name = 'move'
-				tag = 'div'
-			>
-				<div
-					v-for = 'v in [0, 1, 2, 3, 4, 5, 6]'
-					class = 'no-scrollbar list'
-					v-show = 'page.schedule.ct === v'
-					:key = 'v'
-				>
-					<var-card
-						v-for = 'i in page.schedule.list[v] ?? []'
-						:title = 'i.name'
-						:subtitle = "i.count ?? ''"
-						:src = 'i.img'
-						layout = 'row'
-					/>
-				</div>
-			</TransitionGroup>
-		</div>
+		<TransitionGroup
+			name = 'move'
+			tag = 'div'
+		>
+			<browse v-if = 'page.ct == 1'/>
+			<div v-else-if = 'page.ct == 2'/>
+			<schedule v-else :list = 'page.schedule.list'/>
+		</TransitionGroup>
 		<var-tabs
 			v-model:active = 'page.ct'
 		>
@@ -58,26 +32,18 @@
 	</main>
 </template>
 <script setup lang = 'ts'>
-	import { onBeforeMount, reactive, TransitionGroup } from 'vue';
-	import { Themes, StyleProvider } from '@varlet/ui';
+	import { onBeforeMount, reactive } from 'vue';
 
-	import { get_all, get_schedule, type Items, type Schedule } from '@/script/invoke';
+	import schedule from './schedule.vue';
+	import browse from './browse.vue';
+
+	import { get_schedule, type Schedule } from '@/script/invoke';
+	import themes from '@/script/themes';
 
 	const page = reactive({
 		ct : 0,
 		schedule : {
-			list : {} as Schedule,
-			ct : 0,
-			name : 'sun',
-			change () {
-				if (this.name === 'sun') {
-					this.name = 'moon';
-					StyleProvider(Themes.md3Dark);
-				} else {
-					this.name = 'sun';
-					StyleProvider(Themes.md3Light);
-				}
-			}
+			list : {} as Schedule
 		}
 	});
 
@@ -91,27 +57,15 @@
 		height: 100%;
 		> div:nth-of-type(2) {
 			width: 100%;
-			height: calc(100% - 54px * 2);
-			> div:last-of-type {
+			height: calc(100% - 84px);
+			position: relative;
+			overflow: hidden;
+			> div {
+				position: absolute;
+				top: 0;
+				left: 0;
 				width: 100%;
-				height: calc(100% - 54px);
-				position: relative;
-				overflow: hidden;
-				> .list {
-					position: absolute;
-					left: 0;
-					top: 0;
-					height: 100%;
-					width: 100%;
-					overflow-y: auto;
-					display: flex;
-					flex-direction: column;
-					gap: 5px;
-					.var-card {
-						height: 100px;
-						flex-shrink: 0;
-					}
-				}
+				height: 100%;
 			}
 		}
 		> .var-tabs:last-of-type {

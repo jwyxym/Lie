@@ -1,5 +1,4 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
   "productName": "lie",
   "version": "0.1.0",
   "identifier": "cn.jwyxym.lie",
@@ -18,7 +17,10 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "img-src": "'self' asset: http: https: blob: data:",
+        "script-src": "'self' 'wasm-unsafe-eval'"
+      }
     }
   },
   "bundle": {

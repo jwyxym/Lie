@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import Home from './views/home.vue';
 import Animation from './views/animation.vue';
+import Video from './views/video.vue';
 
 const router = createRouter({
 	history : createWebHistory(),
@@ -15,6 +16,11 @@ const router = createRouter({
 			name: 'animation',
 			component: Animation
 		},
+		{
+			path: '/video',
+			name: 'video',
+			component: Video
+		}
 	]
 });
 
