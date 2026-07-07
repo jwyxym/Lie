@@ -22,19 +22,6 @@ pub fn run() {
             api::get_schedule,
             api::get_video
         ])
-		.setup(|app| {
-			#[cfg(target_os = "android")]
-			{
-				let path: PathBuf = app.path().resolve("./", BaseDirectory::Public)?;
-                PATH.set(path).ok();
-			}
-			#[cfg(not(target_os = "android"))]
-			{
-				let path: PathBuf = app.path().resolve("./", BaseDirectory::Resource)?;
-				PATH.set(path).ok();
-			}
-			Ok(())
-		})
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -37,6 +37,9 @@ async fn get_bytes(url: &str) -> Result<Vec<u8>, Error> {
 }
 
 async fn mp4_request_mode(url: &str) -> Result<Mp4RequestMode, Error> {
+	if let Some(content) = cache::get_video(url.to_string()) {
+		return Ok(content);
+	}
 	let response: Response<Body> = ureq::head(url)
 		.header("Accept", "video/mp4,video/*,*/*")
 		.header(
@@ -54,6 +57,7 @@ async fn mp4_request_mode(url: &str) -> Result<Mp4RequestMode, Error> {
 		.unwrap_or("")
 		.to_ascii_lowercase();
 	if content_disposition.contains("attachment") {
+		cache::set_video(url.to_string(), Mp4RequestMode::Download);
 		return Ok(Mp4RequestMode::Download);
 	}
 
@@ -61,13 +65,16 @@ async fn mp4_request_mode(url: &str) -> Result<Mp4RequestMode, Error> {
 		.unwrap_or("")
 		.to_ascii_lowercase();
 	if content_type.starts_with("video/") || content_type.contains("mp4") {
+		cache::set_video(url.to_string(), Mp4RequestMode::Play);
 		return Ok(Mp4RequestMode::Play);
 	}
 
 	if url.split('?').next().unwrap_or("").ends_with(".mp4") {
+		cache::set_video(url.to_string(), Mp4RequestMode::Play);
 		return Ok(Mp4RequestMode::Play);
 	}
 
+	cache::set_video(url.to_string(), Mp4RequestMode::Download);
 	Ok(Mp4RequestMode::Download)
 }
 
@@ -106,7 +113,7 @@ fn response_header<'a>(response: &'a Response<Body>, name: &str) -> Option<&'a s
 	response.headers().get(name)?.to_str().ok()
 }
 
-fn read_response_bytes(response: Response<Body>) -> Result<Vec<u8>, Error> {
+pub(crate) fn read_response_bytes(response: Response<Body>) -> Result<Vec<u8>, Error> {
 	if response.status().is_success() {
 		let mut body: Body = response.into_body();
 		let mut reader: BodyReader<'_> = body.as_reader();

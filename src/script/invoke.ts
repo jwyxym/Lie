@@ -1,5 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 
+import { set, get } from './db';
+
 export interface Item  {
 	name : string;
 	url : string;
@@ -74,22 +76,24 @@ export async function get_browse (year : number, page : number) : Promise<Items>
 
 export async function get_video (url : string) : Promise<string> {
 	try {
-		console.log('get_video')
+		const res = await get(url);
+		if (res)
+			return URL.createObjectURL(res);
 		const video = await invoke<ArrayBuffer>('get_video', { url });
-		console.log('get_video')
 		const view = new DataView(video);
 		const buffer = new Uint8Array(video, 1);
 		const head = view.getUint8(0);
-		console.log(head)
 		if (head === 1) {
 			const text = new TextDecoder('utf-8').decode(buffer);
 			return text;
 		} else if (head === 2) {
 			const blob = new Blob([buffer], { type: 'video/mp4' })
+			await set(url, blob);
 			return URL.createObjectURL(blob);
 		}
 		return '';
 	} catch (e) {
+		console.log(e)
 		return '';
 	}
 }

@@ -1,5 +1,5 @@
 <template>
-	<div class = 'anima no-scrollbar'>
+	<div class = 'anima'>
 		<var-app-bar
 			:title = '
 				route.query.name as string
@@ -27,13 +27,14 @@
 			</template>
 		</var-app-bar>
 		<var-skeleton :loading = '!video.src'/>
-		<video
+		<video-player
 			v-if = 'video.src'
 			:src = 'video.src'
-			controls
 		/>
+		<br/>
 		<var-space
 			v-if = 'video.src'
+			class = 'no-scrollbar'
 		>
 			<var-button
 				v-for = '(i, v) in video.list[0]'
@@ -55,6 +56,7 @@
 
 	import { get_ani, get_video, type Anthology } from '@/script/invoke';
 	import { useTravel } from '@/script/travel';
+	import VideoPlayer from '@/ui/video-player.vue';
 	import themes from '@/script/themes';
 
 	const { to_video, to_ani } = useTravel();
@@ -86,9 +88,10 @@
 	.anima {
 		width: 100%;
 		height: 100%;
-		overflow-y: auto;
-		video {
+		.var-space {
+			overflow-y: auto;
 			width: 100%;
+			height: calc(100% - 300px);
 		}
 		:deep(.var-app-bar) {
 			width: 100%;

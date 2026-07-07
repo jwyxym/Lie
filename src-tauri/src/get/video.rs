@@ -1,5 +1,3 @@
-use std::result;
-
 use super::{get, get_bytes, mp4_request_mode, Mp4RequestMode};
 use anyhow::{Error, anyhow};
 use lazy_static::lazy_static;
