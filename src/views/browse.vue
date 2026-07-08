@@ -112,6 +112,7 @@
 </script>
 <style scoped lang = 'scss'>
 	.browse {
+		color: var(--color-primary);
 		> div {
 			margin-top: 5px;
 		}
