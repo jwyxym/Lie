@@ -107,7 +107,6 @@ jobs:
       - name: Create release-latest
         run: |
           cd build
-          sh ../.ci/rename.sh
           gh release delete release-latest --cleanup-tag -y || true
           gh release create release-latest $(find . -type f) \
             --target "$GITHUB_SHA" \
