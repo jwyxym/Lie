@@ -27,7 +27,7 @@
 		>
 			<var-tab>追番周表</var-tab>
 			<var-tab>全部番剧</var-tab>
-			<var-tab>搜素番剧</var-tab>
+			<!-- <var-tab>搜素番剧</var-tab> -->
 		</var-tabs>
 	</main>
 </template>

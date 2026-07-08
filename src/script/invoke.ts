@@ -55,9 +55,9 @@ export async function get_schedule () : Promise<Schedule> {
 	}
 };
 
-export async function get_browse (year : number, page : number) : Promise<Items> {
+export async function get_browse (status : number, year : number, page : number) : Promise<Items> {
 	try {
-		return JSON.parse(await invoke<string>('get_browse', { year, page }))
+		return JSON.parse(await invoke<string>('get_browse', { status, year, page }))
 			.list
 			.map((i : {
 				vod_pic : string;

@@ -9,8 +9,8 @@ pub async fn get_ani(
 }
 
 #[tauri::command]
-pub async fn get_browse(year: i64, page: i64) -> Result<String, String> {
-	browse(year, page).await.map_err(|e| e.to_string())
+pub async fn get_browse(status: u8, year: i64, page: i64) -> Result<String, String> {
+	browse(status, year, page).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]

@@ -1,14 +1,32 @@
 <template>
 	<div class = 'browse'>
 		<div>
-			年份
-			<var-switch v-model = 'browse.btn'/>
+			状态
+			<var-switch v-model = 'browse.btn[0]'/>
 		</div>
-		<var-collapse-transition :expand = 'browse.btn'>
+		<var-collapse-transition :expand = 'browse.btn[0]'>
+			<var-button
+				:type = "browse.status === 1 ? 'primary' : 'default'"
+				@click = 'browse.select_status(1)'
+			>
+				连载中
+			</var-button>
+			<var-button
+				:type = "browse.status === 2 ? 'primary' : 'default'"
+				@click = 'browse.select_status(2)'
+			>
+				已完结
+			</var-button>
+		</var-collapse-transition>
+		<div>
+			年份
+			<var-switch v-model = 'browse.btn[1]'/>
+		</div>
+		<var-collapse-transition :expand = 'browse.btn[1]'>
 			<var-button
 				v-for = 'i in browse.years'
 				:type = "browse.year === i[1] ? 'primary' : 'default'"
-				@click = 'browse.select(i[1])'
+				@click = 'browse.select_year(i[1])'
 			>
 				{{ i[0] }}
 			</var-button>
@@ -36,15 +54,27 @@
 	const list = ref(null);
 
 	const browse = reactive({
-		btn : false,
+		btn : [false, false],
 		years : [] as Array<[string, number]>,
+		status : 1,
 		year : 0,
 		ct : 0,
-		select (year : number) {
+		select_year (year : number) {
 			if (this.year === year)
 				return;
 			this.year = year;
 			this.ct = 0;
+			this.finished = false;
+			this.list.length = 0;
+			//@ts-ignore
+			list.value?.load?.();
+		},
+		select_status (status : number) {
+			if (this.status === status)
+				return;
+			this.status = status;
+			this.ct = 0;
+			this.finished = false;
 			this.list.length = 0;
 			//@ts-ignore
 			list.value?.load?.();
@@ -56,7 +86,7 @@
 			if (this.loaded)
 				return;
 			this.loaded = true;
-			get_browse(this.year, this.ct ++).then(i => {
+			get_browse(this.status, this.year, this.ct ++).then(i => {
 				i.length
 					? this.list.push(...i)
 					: this.finished = true;
@@ -76,7 +106,7 @@
 	onBeforeMount(() => {
 		browse.years.push(['全部', 0]);
 		const year = new Date().getFullYear();
-		for (let i = year; i >= 2007; i --)
+		for (let i = year; i >= 2010; i --)
 			browse.years.push([i.toString(), i]);
 	});
 </script>
@@ -85,18 +115,19 @@
 		> div {
 			margin-top: 5px;
 		}
-		> div:first-of-type {
+		> div:first-of-type,
+		> div:nth-of-type(3) {
 			display: flex;
 			gap: 20px;
 			height: 30px;
 		}
-		.var-collapse-transition {
+		.var-collapse-transition__content {
 			display: flex;
 			flex-wrap: wrap;
 			gap: 5px;
 		}
 		.var-list {
-			height: calc(100% - 50px);
+			height: calc(100% - 100px);
 			width: 100%;
 			overflow-y: auto;
 			display: flex;

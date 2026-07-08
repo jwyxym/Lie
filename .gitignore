@@ -27,3 +27,6 @@ src-tauri/gen
 /.vscode
 src-tauri/2
 *.bat
+*.jks
+*.apk
+*.idsig
