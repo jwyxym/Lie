@@ -58,12 +58,12 @@
 		years : [] as Array<[string, number]>,
 		status : 1,
 		year : 0,
-		ct : 0,
+		ct : 1,
 		select_year (year : number) {
 			if (this.year === year)
 				return;
 			this.year = year;
-			this.ct = 0;
+			this.ct = 1;
 			this.finished = false;
 			this.list.length = 0;
 			//@ts-ignore
@@ -73,7 +73,7 @@
 			if (this.status === status)
 				return;
 			this.status = status;
-			this.ct = 0;
+			this.ct = 1;
 			this.finished = false;
 			this.list.length = 0;
 			//@ts-ignore
