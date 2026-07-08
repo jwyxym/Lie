@@ -1,5 +1,5 @@
 <template>
-	<div class = 'anima no-scrollbar'>
+	<div class = 'anima'>
 		<var-app-bar
 			:title = 'ani?.name'
 		>
@@ -25,32 +25,37 @@
 			</template>
 		</var-app-bar>
 		<var-skeleton :loading = '!ani'/>
-		<var-card
+		<div
+			class = 'content no-scrollbar'
 			v-if = 'ani'
-			:title = 'ani.name'
-			:subtitle = 'ani.date'
-			:description = 'ani.desc'
-			:src = 'ani.img'
 		>
-			<template #extra>
-				<div class = 'list'>
-					<var-tabs
-						v-model:active = 'select'
-					>
-						<var-tab v-for = '(_, v) in ani.links'>
-							播放来源{{ v + 1 }}
-						</var-tab>
-					</var-tabs>
-					<var-space>
-						<var-button
-							v-for = 'i in ani.links[select]'
-							type = 'primary'
-							@click = 'to_video(i.url, route.query.url as string, ani.name)'
-						>{{ i.name }}</var-button>
-					</var-space>
-				</div>
-			</template>
-		</var-card>
+			<var-card
+				:title = 'ani.name'
+				:subtitle = 'ani.date'
+				:description = 'ani.desc'
+				:src = 'ani.img'
+			>
+			</var-card>
+			<div
+				class = 'list'
+			>
+				<var-tabs
+					v-model:active = 'select'
+					color = 'transparent'
+				>
+					<var-tab v-for = '(_, v) in ani.links'>
+						播放来源{{ v + 1 }}
+					</var-tab>
+				</var-tabs>
+				<var-space>
+					<var-button
+						v-for = 'i in ani.links[select]'
+						type = 'primary'
+						@click = 'to_video(i.url, route.query.url as string, ani.name)'
+					>{{ i.name }}</var-button>
+				</var-space>
+			</div>
+		</div>
 	</div>
 </template>
 <script setup lang = 'ts'>
@@ -77,7 +82,6 @@
 	.anima {
 		width: 100%;
 		height: 100%;
-		overflow-y: auto;
 		:deep(.var-app-bar) {
 			width: 100%;
 			.var-app-bar__toolbar {
@@ -87,9 +91,14 @@
 				}
 			}
 		}
-		.var-card {
+		.content {
 			width: 100%;
-			:deep(.list) {
+			height: calc(100% - 54px);
+			overflow-y: auto;
+			.var-card {
+				width: 100%;
+			}
+			.list {
 				width: 100%;
 				display: flex;
 				flex-direction: column;

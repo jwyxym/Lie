@@ -51,7 +51,7 @@
 	</div>
 </template>
 <script setup lang = 'ts'>
-	import { watch, reactive, onUnmounted } from 'vue';
+	import { watch, reactive } from 'vue';
 	import { useRoute } from 'vue-router';
 
 	import { get_ani, get_video, type Anthology } from '@/script/invoke';
@@ -79,10 +79,6 @@
 			video.src = i;
 		});
 	}, { immediate : true });
-
-	onUnmounted(() => {
-		URL.revokeObjectURL(video.src);
-	})
 </script>
 <style scoped lang = 'scss'>
 	.anima {

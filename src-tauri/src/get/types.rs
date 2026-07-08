@@ -13,10 +13,3 @@ pub struct Anthology {
     pub name: String,
     pub url: String,
 }
-
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Mp4RequestMode {
-	Play,
-	Download,
-}

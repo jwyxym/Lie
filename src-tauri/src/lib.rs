@@ -5,10 +5,6 @@ use std::{
 	path::PathBuf,
 	sync::OnceLock
 };
-use tauri::{
-	path::BaseDirectory,
-	Manager
-};
 
 pub static PATH: OnceLock<PathBuf> = OnceLock::new();
 

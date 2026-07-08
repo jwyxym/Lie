@@ -1,6 +1,5 @@
 use super::get::*;
 use std::collections::BTreeMap;
-use tauri::ipc::Response;
 
 #[tauri::command]
 pub async fn get_ani(
@@ -20,9 +19,6 @@ pub async fn get_schedule() -> Result<BTreeMap<usize, Vec<Schedule>>, String> {
 }
 
 #[tauri::command]
-pub async fn get_video(url: String) -> Response {
-	video(url).await
-		.ok()
-		.map(Response::new)
-		.unwrap_or_else(|| Response::new(Vec::new()))
+pub async fn get_video(url: String) -> Result<String, String> {
+	video(url).await.map_err(|e| e.to_string())
 }

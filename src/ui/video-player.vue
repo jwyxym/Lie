@@ -4,15 +4,32 @@
 
 <script setup lang = 'ts'>
 	import Hls from 'hls.js';
-	import { onMounted, ref } from 'vue';
+	import { onMounted, onUnmounted, ref } from 'vue';
 
 	const video = ref<HTMLVideoElement | null>(null);
 	const props = defineProps<{ src : string; }>();
+	let hls: Hls | undefined;
+
+	let init = 0;
+
+	function init_video () {
+		if (init ++ % 2) {
+			window.LieAndroid?.lockPortrait();
+			window.LieAndroid?.showNavigation();
+			window.LieAndroid?.showStatusBar();
+		}
+		else {
+			window.LieAndroid?.lockLandscape();
+			window.LieAndroid?.hideNavigation();
+			window.LieAndroid?.hideStatusBar();
+		}
+	}
 
 	onMounted(() => {
-			console.log(props.src)
+		document.addEventListener('fullscreenchange', init_video);
+		document.addEventListener('webkitfullscreenchange', init_video);
 		if (props.src.includes('m3u8') && Hls.isSupported()) {
-			const hls = new Hls();
+			hls = new Hls();
 			hls.loadSource(props.src);
 			hls.attachMedia(video.value!);
 
@@ -21,7 +38,13 @@
 			})
 		} else
 			video.value!.src = props.src;
-	})
+	});
+
+	onUnmounted(() => {
+		hls?.destroy();
+		document.removeEventListener('fullscreenchange', init_video)
+		document.removeEventListener('webkitfullscreenchange', init_video);
+	});
 </script>
 <style scoped lang = 'scss'>
 	video {

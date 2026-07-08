@@ -1,6 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-
-import { set, get } from './db';
+import { Snackbar } from '@varlet/ui';
 
 export interface Item  {
 	name : string;
@@ -31,12 +30,14 @@ export async function get_ani (url : string) : Promise<AniInfo | undefined> {
 		const result = await invoke<[string, string, string, string, Anthology]>('get_ani', { url })
 		return {
 			name : result[0],
-			desc : result[1],
-			date : result[2],
+			date : result[1],
+			desc : result[2],
 			img : result[3],
 			links : result[4]
 		};
 	} catch (e) {
+		//@ts-ignore
+		Snackbar['error'](e.toString());
 		return undefined;
 	}
 };
@@ -45,6 +46,8 @@ export async function get_schedule () : Promise<Schedule> {
 	try {
 		return await invoke<Schedule>('get_schedule');
 	} catch (e) {
+		//@ts-ignore
+		Snackbar['error'](e.toString());
 		const result : Schedule = {};
 		for (let i = 0; i < 7; i ++)
 			result[i] = [];
@@ -70,30 +73,18 @@ export async function get_browse (year : number, page : number) : Promise<Items>
 				};
 			});
 	} catch (e) {
+		//@ts-ignore
+		Snackbar['error'](e.toString());
 		return [];
 	}
 };
 
 export async function get_video (url : string) : Promise<string> {
 	try {
-		const res = await get(url);
-		if (res)
-			return URL.createObjectURL(res);
-		const video = await invoke<ArrayBuffer>('get_video', { url });
-		const view = new DataView(video);
-		const buffer = new Uint8Array(video, 1);
-		const head = view.getUint8(0);
-		if (head === 1) {
-			const text = new TextDecoder('utf-8').decode(buffer);
-			return text;
-		} else if (head === 2) {
-			const blob = new Blob([buffer], { type: 'video/mp4' })
-			await set(url, blob);
-			return URL.createObjectURL(blob);
-		}
-		return '';
+		return await invoke<string>('get_video', { url });
 	} catch (e) {
-		console.log(e)
+		//@ts-ignore
+		Snackbar['error'](e.toString());
 		return '';
 	}
 }
