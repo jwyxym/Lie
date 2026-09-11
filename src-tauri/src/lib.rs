@@ -16,7 +16,9 @@ pub fn run() {
             api::get_ani,
             api::get_browse,
             api::get_schedule,
-            api::get_video
+            api::get_video,
+            api::get_verify_image,
+            api::verify_search
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

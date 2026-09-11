@@ -76,6 +76,7 @@
 </script>
 <style scoped lang = 'scss'>
 	.schedule {
+		overflow: hidden;
 		> .var-skeleton {
 			width: 100%;
 		}

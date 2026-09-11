@@ -22,3 +22,13 @@ pub async fn get_schedule() -> Result<BTreeMap<usize, Vec<Schedule>>, String> {
 pub async fn get_video(url: String) -> Result<String, String> {
 	video(url).await.map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub async fn get_verify_image(keyword: String) -> Result<Verify, String> {
+	image(keyword).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn verify_search(verify: String, keyword: String) -> Result<Vec<(String, String, String)>, String> {
+	submit(verify, keyword).await.map_err(|e| e.to_string())
+}

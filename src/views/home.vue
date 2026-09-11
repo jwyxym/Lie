@@ -19,7 +19,7 @@
 			tag = 'div'
 		>
 			<browse v-if = 'page.ct == 1'/>
-			<div v-else-if = 'page.ct == 2'/>
+			<search v-else-if = 'page.ct == 2'/>
 			<schedule v-else :list = 'page.schedule.list'/>
 		</TransitionGroup>
 		<var-tabs
@@ -27,7 +27,7 @@
 		>
 			<var-tab>追番周表</var-tab>
 			<var-tab>全部番剧</var-tab>
-			<!-- <var-tab>搜素番剧</var-tab> -->
+			<var-tab>搜素番剧</var-tab>
 		</var-tabs>
 	</main>
 </template>
@@ -36,6 +36,7 @@
 
 	import schedule from './schedule.vue';
 	import browse from './browse.vue';
+	import search from './search.vue';
 
 	import { get_schedule, type Schedule } from '@/script/invoke';
 	import themes from '@/script/themes';

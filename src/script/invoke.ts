@@ -25,6 +25,16 @@ export interface AniInfo {
 	links : Anthology;
 };
 
+export interface Verify {
+	Image : VerifyImage
+	Data : Array<[string, string, string]>
+};
+
+export interface VerifyImage {
+	bytes : number[];
+	mime : string;
+};
+
 export async function get_ani (url : string) : Promise<AniInfo | undefined> {
 	try {
 		const result = await invoke<[string, string, string, string, Anthology]>('get_ani', { url })
@@ -86,5 +96,32 @@ export async function get_video (url : string) : Promise<string> {
 		//@ts-ignore
 		Snackbar['error'](e.toString());
 		return '';
+	}
+}
+
+export async function get_verify_image (keyword: string) : Promise<Verify | undefined> {
+	try {
+		return await invoke<Verify>('get_verify_image', { keyword });
+	} catch (e) {
+		//@ts-ignore
+		Snackbar['error'](e.toString());
+		return undefined;
+	}
+}
+
+export async function verify_search (verify : string, keyword : string) : Promise<Items> {
+	try {
+		return (await invoke<Array<[string, string, string]>>('verify_search', { verify, keyword }))
+			.map(i => {
+				return {
+					name : i[0],
+					url : "https://anime.xifanacg.com" + i[1],
+					img : i[2]
+				}
+			});
+	} catch (e) {
+		//@ts-ignore
+		Snackbar['error'](e.toString());
+		return [];
 	}
 }
