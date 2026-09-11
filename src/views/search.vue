@@ -19,6 +19,7 @@
 			/>
 			<var-chip
 				plain
+				type = 'primary'
 				@click = 'page.get_verify()'
 			>
 				搜索
@@ -39,6 +40,7 @@
 			/>
 			<var-chip
 				plain
+				type = 'primary'
 				@click = 'page.search()'
 			>
 				验证
