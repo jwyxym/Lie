@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@cloudgeek/vue3-video-player": "^0.3.10",
-    "@jwyxym/video-player": "^0.0.2",
+    "@jwyxym/video-player": "^0.0.3",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
     "@varlet/ui": "^3.19.2",
