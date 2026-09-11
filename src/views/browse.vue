@@ -1,35 +1,52 @@
 <template>
 	<div class = 'browse'>
-		<div>
-			状态
-			<var-switch v-model = 'browse.btn[0]'/>
-		</div>
+		<var-cell :border = 'true' title = '状态'>
+			<template #extra>
+				<var-icon 
+					:name = "browse.btn[0] ? 'chevron-down' : 'chevron-left'"
+					:transition = '100'
+					@click = '() => browse.btn[0] = !browse.btn[0]'
+				/>
+			</template>
+		</var-cell>
 		<var-collapse-transition :expand = 'browse.btn[0]'>
-			<var-button
-				:type = "browse.status === 1 ? 'primary' : 'default'"
-				@click = 'browse.select_status(1)'
-			>
-				连载中
-			</var-button>
-			<var-button
-				:type = "browse.status === 2 ? 'primary' : 'default'"
-				@click = 'browse.select_status(2)'
-			>
-				已完结
-			</var-button>
+			<div>
+				<var-button
+					:type = "browse.status === 1 ? 'primary' : 'default'"
+					@click = 'browse.select_status(1)'
+				>
+					连载中
+				</var-button>
+			</div>
+			<div>
+				<var-button
+					:type = "browse.status === 2 ? 'primary' : 'default'"
+					@click = 'browse.select_status(2)'
+				>
+					已完结
+				</var-button>
+			</div>
 		</var-collapse-transition>
-		<div>
-			年份
-			<var-switch v-model = 'browse.btn[1]'/>
-		</div>
+		<var-cell :border = 'true' title = '年份'>
+			<template #extra>
+				<var-icon 
+					:name = "browse.btn[1] ? 'chevron-down' : 'chevron-left'"
+					:transition = '100'
+					@click = '() => browse.btn[1] = !browse.btn[1]'
+				/>
+			</template>
+		</var-cell>
 		<var-collapse-transition :expand = 'browse.btn[1]'>
-			<var-button
+			<div
 				v-for = 'i in browse.years'
-				:type = "browse.year === i[1] ? 'primary' : 'default'"
-				@click = 'browse.select_year(i[1])'
 			>
-				{{ i[0] }}
-			</var-button>
+				<var-button
+					:type = "browse.year === i[1] ? 'primary' : 'default'"
+					@click = 'browse.select_year(i[1])'
+				>
+					{{ i[0] }}
+				</var-button>
+			</div>
 		</var-collapse-transition>
 		<var-list
 			:finished = 'browse.finished'
@@ -126,6 +143,13 @@
 			display: flex;
 			flex-wrap: wrap;
 			gap: 5px;
+			> * {
+				width: 75px;
+				height: 40px;
+				display: flex;
+				justify-content: center;
+				align-items: center;
+			}
 		}
 		.var-list {
 			height: calc(100% - 100px);

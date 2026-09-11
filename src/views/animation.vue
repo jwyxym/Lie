@@ -105,6 +105,7 @@
 				gap: 5px;
 				.var-space {
 					width: 90%;
+					align-content: flex-start;
 				}
 			}
 		}

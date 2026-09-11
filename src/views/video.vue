@@ -29,6 +29,7 @@
 		<var-skeleton :loading = '!video.src'/>
 		<video-player
 			v-if = 'video.src'
+			:key = 'video.src'
 			:src = 'video.src'
 		/>
 		<br/>
@@ -69,16 +70,29 @@
 		title : ''
 	});
 
-	watch(() => route.query.url, (url) => {
-		video.title = route.query.name as string;
-		get_ani(route.query.back as string).then(i => {
-			if (i)
-				video.list = i?.links;
-		});
-		get_video(url as string).then(i => {
-			video.src = i;
-		});
-	}, { immediate : true });
+	let request = 0;
+
+	watch(() => [route.query.url, route.query.back, route.query.name] as const,
+		async ([url, back, name]) => {
+			if (typeof url !== 'string')
+				return;
+
+			const id = ++ request;
+			video.src = '';
+			video.title = typeof name === 'string' ? name : '';
+
+			const aniRequest = typeof back === 'string'
+				? get_ani(back)
+				: Promise.resolve(undefined);
+			const src = await get_video(url);
+			// A slower, earlier request must not overwrite the selected episode.
+			if (id === request)
+				video.src = src;
+
+			const ani = await aniRequest;
+			if (id === request && ani)
+				video.list = ani.links;
+		}, { immediate : true });
 </script>
 <style scoped lang = 'scss'>
 	.anima {
@@ -88,6 +102,7 @@
 			overflow-y: auto;
 			width: 100%;
 			height: calc(100% - 300px);
+			align-content: flex-start;
 		}
 		:deep(.var-app-bar) {
 			width: 100%;
