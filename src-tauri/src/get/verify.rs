@@ -31,7 +31,8 @@ struct VerifyResponse {
 }
 
 pub async fn image(keyword: String) -> Result<Verify, Error> {
-    if let Some(html) = cache::get(keyword.clone()) {
+	let cache_key: String = format!("VERIFY:{}", keyword);
+    if let Some(html) = cache::get(cache_key) {
         return Ok(Verify::Data(search(keyword, html)))
     }
     let url: String = format!("{BASE_URL}/index.php/verify/index.html?r={}",
@@ -99,7 +100,8 @@ pub async fn submit(verify: String, keyword: String) -> Result<Vec<(String, Stri
 
 fn search (keyword: String, html: String) -> Vec<(String, String, String)> {
     let document: Html = Html::parse_document(&html);
-    cache::set(keyword, html);
+	let cache_key: String = format!("VERIFY:{}", keyword);
+    cache::set( cache_key, html);
     let mut results: Vec<(String, String, String)> = Vec::new();
     for div in document.select(&SEL) {
         if let Some(a) = div.select(&A_SEL).next() {

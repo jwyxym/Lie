@@ -20,12 +20,13 @@ const BASE_URL: &str = "https://anime.xifanacg.com";
 pub(super) static AGENT: LazyLock<ureq::Agent> = LazyLock::new(ureq::agent);
 
 async fn get(url: &str) -> Result<String, Error> {
-	if let Some(content) = cache::get(url.to_string()) {
+	let cache_key: String = format!("GET:{}", url);
+	if let Some(content) = cache::get(cache_key.clone()) {
 		return Ok(content);
 	}
 	let response: Response<Body> = AGENT.get(url).call()?;
 	let content: String = read_response(response)?;
-	cache::set(url.to_string(), content.clone());
+	cache::set(cache_key, content.clone());
 	Ok(content)
 }
 
