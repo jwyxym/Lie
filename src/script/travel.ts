@@ -10,10 +10,10 @@ export function useTravel () {
 		});
 	};
 
-	function to_video (url : string, back : string, name : string) {
+	function to_video (url : string, back : string, name : string, page : number) {
 		router.push({
 			name: 'video',
-			query: { url, back, name }
+			query: { url, back, name, page }
 		});
 	};
 

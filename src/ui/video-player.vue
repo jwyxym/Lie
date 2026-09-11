@@ -1,15 +1,18 @@
 <template>
-	<video ref = 'video' controls/>
+	<VideoPlayer
+		:src = 'props.src'
+		:download = 'false'
+		:playback-rates = '[0.5, 1, 1.5, 2, 2.5, 3, 4, 5]'
+		@fullscreenchange = 'init_video'
+		@webkitfullscreenchange = 'init_video'
+	/>
 </template>
 
 <script setup lang = 'ts'>
-	import Hls from 'hls.js';
-	import { onMounted, onUnmounted, ref } from 'vue';
+	import { VideoPlayer } from '@jwyxym/video-player'
+	import '@jwyxym/video-player/style.css'
 
-	const video = ref<HTMLVideoElement | null>(null);
 	const props = defineProps<{ src : string; }>();
-	let hls: Hls | undefined;
-
 	let init = 0;
 
 	function init_video () {
@@ -23,28 +26,7 @@
 			window.LieAndroid?.hideNavigation();
 			window.LieAndroid?.hideStatusBar();
 		}
-	}
-
-	onMounted(() => {
-		document.addEventListener('fullscreenchange', init_video);
-		document.addEventListener('webkitfullscreenchange', init_video);
-		if (props.src.includes('m3u8') && Hls.isSupported()) {
-			hls = new Hls();
-			hls.loadSource(props.src);
-			hls.attachMedia(video.value!);
-
-			hls.on(Hls.Events.ERROR, (_, data) => {
-				console.error('HLS error:', data)
-			})
-		} else
-			video.value!.src = props.src;
-	});
-
-	onUnmounted(() => {
-		hls?.destroy();
-		document.removeEventListener('fullscreenchange', init_video)
-		document.removeEventListener('webkitfullscreenchange', init_video);
-	});
+	};
 </script>
 <style scoped lang = 'scss'>
 	video {

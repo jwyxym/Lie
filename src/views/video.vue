@@ -38,12 +38,13 @@
 			class = 'no-scrollbar'
 		>
 			<var-button
-				v-for = '(i, v) in video.list[0]'
+				v-for = '(i, v) in video.list[parseInt(route.query.page as string)]'
 				:type = "i.url === route.query.url ? 'primary' : 'default'"
 				@click = 'to_video(
 					i.url,
 					route.query.back as string,
-					route.query.name as string
+					route.query.name as string,
+					parseInt(route.query.page as string)
 				)'
 			>
 				第{{ v + 1 }}集

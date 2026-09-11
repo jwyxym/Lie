@@ -51,7 +51,7 @@
 					<var-button
 						v-for = 'i in ani.links[select]'
 						type = 'primary'
-						@click = 'to_video(i.url, route.query.url as string, ani.name)'
+						@click = 'to_video(i.url, route.query.url as string, ani.name, select)'
 					>{{ i.name }}</var-button>
 				</var-space>
 			</div>
