@@ -165,7 +165,6 @@
 			top: 0;
   			transform: translateX(var(--move-x, 0)) translateY(var(--top));
 			height: calc(100% - var(--top));
-			background-color: antiquewhite;
 			width: 100%;
 			overflow-y: auto;
 			display: flex;
