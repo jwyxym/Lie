@@ -66,7 +66,7 @@
 	</TransitionGroup>
 </template>
 <script setup lang = 'ts'>
-	import { computed, onBeforeUnmount, reactive } from 'vue';
+	import { computed, onBeforeMount, onBeforeUnmount, reactive } from 'vue';
 	import { get_verify_image, verify_search, type Items } from '@/script/invoke';
 	import Card from '@/ui/card.vue';
 
@@ -80,8 +80,12 @@
 		items : [] as Items,
 		submitting : false,
 		get_verify : function () {
-			if (!page.keywords?.trim()) return;
-			get_verify_image(page.keywords.trim())
+			const keywords = page.keywords?.trim();
+			if (!keywords) {
+				page.items.length = 0;
+				return emit('update:modelValue', '');
+			}
+			get_verify_image(keywords)
 				.then((i) => {
 					if (i?.Image) {
 						this.clear_verify();
@@ -93,6 +97,7 @@
 						page.items.length = 0;
 						this.clear_verify();
 						setTimeout(() => {
+							emit('update:modelValue', keywords);
 							page.items = i.Data
 								.map(i => {
 									return {
@@ -106,12 +111,13 @@
 				});
 		},
 		search : function () {
-			if (!page.keywords?.trim() || !page.verify?.trim()) return;
-			verify_search(page.verify.trim(), page.keywords.trim())
+			const keywords = page.keywords?.trim();
+			if (!keywords || !page.verify?.trim()) return;
+			verify_search(page.verify.trim(), keywords)
 				.then((i) => {
 					this.clear_verify();
-					console.log(i)
 					setTimeout(() => {
+						emit('update:modelValue', keywords);
 						page.items = i
 					}, 200);
 				});
@@ -129,7 +135,24 @@
 		}
 	});
 
-	onBeforeUnmount(() => page.clear_verify());
+	const props = defineProps<{
+		modelValue : string;
+	}>();
+
+	const emit = defineEmits<{
+		'update:modelValue' : [string];
+	}>();
+
+	onBeforeMount(() => {
+		if (props.modelValue) {
+			page.keywords = props.modelValue;
+			page.get_verify();
+		}
+	});
+
+	onBeforeUnmount(() => {
+		page.clear_verify();
+	});
 </script>
 <style scoped lang = 'scss'>
 	.search {

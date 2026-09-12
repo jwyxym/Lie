@@ -19,8 +19,8 @@
 			tag = 'div'
 		>
 			<browse v-if = 'page.ct == 1'/>
-			<search v-else-if = 'page.ct == 2'/>
-			<schedule v-else :list = 'page.schedule.list'/>
+			<search v-else-if = 'page.ct == 2' v-model = 'page.search'/>
+			<schedule v-else :list = 'page.schedule.list' v-model = 'page.day'/>
 		</TransitionGroup>
 		<var-tabs
 			v-model:active = 'page.ct'
@@ -32,7 +32,8 @@
 	</main>
 </template>
 <script setup lang = 'ts'>
-	import { onBeforeMount, reactive } from 'vue';
+	import { computed, onBeforeMount, reactive } from 'vue';
+	import { useRoute } from 'vue-router';
 
 	import schedule from './schedule.vue';
 	import browse from './browse.vue';
@@ -40,9 +41,29 @@
 
 	import { get_schedule, type Schedule } from '@/script/invoke';
 	import themes from '@/script/themes';
+	import { useTravel } from '@/script/travel';
 
+	const { to_home } = useTravel();
+	const route = useRoute();
 	const page = reactive({
-		ct : 0,
+		ct : computed({
+			get : () : number => parseInt(route.query.home as string | undefined ?? '0'),
+			set : (i : number) => {
+				to_home(i.toString(), (i > 0 ? 0 : page.day).toString(), page.search);
+			}
+		}),
+		day : computed({
+			get : () : number => parseInt(route.query.day as string | undefined ?? '0'),
+			set : (i : number) => {
+				to_home('0', i.toString(), page.search);
+			}
+		}),
+		search : computed({
+			get : () : string => route.query.search as string | undefined ?? '',
+			set : (i : string) => {
+				to_home('2', page.day.toString(), i);
+			}
+		}),
 		schedule : {
 			list : {} as Schedule
 		}

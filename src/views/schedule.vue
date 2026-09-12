@@ -37,12 +37,17 @@
 	</div>
 </template>
 <script setup lang = 'ts'>
-	import { reactive } from 'vue';
+	import { computed, reactive } from 'vue';
 	import { type Schedule } from '@/script/invoke';
 	import card from '@/ui/card.vue';
 
 	const schedule = reactive({
-		ct : 0
+		ct : computed({
+			get : () =>props.modelValue,
+			set : (i : number) => {
+				emit('update:modelValue', i);
+			}
+		})
 	});
 
 	const touch = reactive({
@@ -70,8 +75,13 @@
 			schedule.ct = Math.max(schedule.ct - 1, 0);
 	}
 
-	defineProps<{
-		list : Schedule
+	const props = defineProps<{
+		list : Schedule;
+		modelValue : number;
+	}>();
+
+	const emit = defineEmits<{
+		'update:modelValue' : [number];
 	}>();
 </script>
 <style scoped lang = 'scss'>

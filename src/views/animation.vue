@@ -7,7 +7,11 @@
 				<var-button
 					round
 					text
-					@click = 'to_home'
+					@click = 'to_home(
+						route.query.home as string,
+						route.query.day as string,
+						route.query.search as string
+					)'
 				>
 					<var-icon
 						name = 'chevron-left'
@@ -51,7 +55,14 @@
 					<var-button
 						v-for = 'i in ani.links[select]'
 						type = 'primary'
-						@click = 'to_video(i.url, route.query.url as string, ani.name, select)'
+						@click = 'to_video(
+							i.url,
+							route.query.url as string,
+							ani.name, select,
+							route.query.home as string,
+							route.query.day as string,
+							route.query.search as string
+						)'
 					>{{ i.name }}</var-button>
 				</var-space>
 			</div>

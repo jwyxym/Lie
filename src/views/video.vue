@@ -9,7 +9,12 @@
 				<var-button
 					round
 					text
-					@click = 'to_ani(route.query.back as string)'
+					@click = 'to_ani(
+						route.query.back as string,
+						route.query.home as string,
+						route.query.day as string,
+						route.query.search as string
+					)'
 				>
 					<var-icon
 						name = 'chevron-left'
@@ -44,7 +49,10 @@
 					i.url,
 					route.query.back as string,
 					route.query.name as string,
-					parseInt(route.query.page as string)
+					parseInt(route.query.page as string),
+					route.query.home as string,
+					route.query.day as string,
+					route.query.search as string
 				)'
 			>
 				第{{ v + 1 }}集
