@@ -24,10 +24,9 @@
 	let fullscreen = false;
 	onMounted(async () => {
 		listener = await onBackButtonPress((i) => {
-			if (fullscreen) {
-				out_video();
+			if (fullscreen)
 				player.value?.exitFullscreen?.();
-			} else if (i.canGoBack)
+			else if (i.canGoBack)
 				tarvel.back();
 		});
 	});
