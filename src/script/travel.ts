@@ -32,9 +32,14 @@ export function useTravel () {
 		});
 	};
 
+	function back () {
+		router.back();
+	};
+
 	return {
 		to_ani,
 		to_video,
-		to_home
+		to_home,
+		back
 	};
 }
