@@ -50,6 +50,7 @@
 				alt = '验证码，点击刷新'
 				@click = 'page.get_verify()'
 			/>
+			<var-skeleton :loading = 'page.loading' v-if = '!page.items.length'/>
 		</div>
 		<div
 			v-if = 'page.items.length'
@@ -74,6 +75,7 @@
 		keywords : '',
 		verify : '',
 		verify_src : '',
+		loading : false,
 		top : computed(() : string => {
 			return (page.verify_src ? 180 : 60) + 'px';
 		}),
@@ -113,6 +115,7 @@
 		search : function () {
 			const keywords = page.keywords?.trim();
 			if (!keywords || !page.verify?.trim()) return;
+			this.loading = true;
 			verify_search(page.verify.trim(), keywords)
 				.then((i) => {
 					this.clear_verify();
@@ -126,6 +129,7 @@
 			if (this.verify_src)
 				URL.revokeObjectURL(this.verify_src);
 			this.verify_src = '';
+			this.loading = false;
 		},
 		keydown : function (event : KeyboardEvent) {
 			if (event.key === 'Enter')
