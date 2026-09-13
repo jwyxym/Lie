@@ -32,8 +32,10 @@
 	</main>
 </template>
 <script setup lang = 'ts'>
-	import { computed, onBeforeMount, reactive } from 'vue';
+	import { computed, onBeforeMount, onMounted, onUnmounted, reactive } from 'vue';
 	import { useRoute } from 'vue-router';
+	import { onBackButtonPress } from '@tauri-apps/api/app';
+	import { exit } from '@tauri-apps/plugin-process';
 
 	import schedule from './schedule.vue';
 	import browse from './browse.vue';
@@ -71,6 +73,18 @@
 
 	onBeforeMount(async () => {
 		page.schedule.list = await get_schedule();
+	});
+
+	let listener: Awaited<ReturnType<typeof onBackButtonPress>> | undefined;
+	onMounted(async () => {
+		listener = await onBackButtonPress((i) => {
+			if (i.canGoBack)
+				exit(1);
+		});
+	});
+
+	onUnmounted(() => {
+		listener?.unregister();
 	});
 </script>
 <style scoped lang = 'scss'>

@@ -36,6 +36,12 @@
 			v-if = 'video.src'
 			:key = 'video.src'
 			:src = 'video.src'
+			@exit = 'to_ani(
+				route.query.back as string,
+				route.query.home as string,
+				route.query.day as string,
+				route.query.search as string
+			)'
 		/>
 		<br/>
 		<var-space

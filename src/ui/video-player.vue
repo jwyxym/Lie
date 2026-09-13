@@ -14,9 +14,6 @@
 	import { onMounted, onUnmounted, ref } from 'vue';
 	import { VideoPlayer } from '@jwyxym/video-player'
 	import '@jwyxym/video-player/style.css'
-	import { useTravel } from '@/script/travel';
-
-	const tarvel = useTravel()
 
 	const player = ref<InstanceType<typeof VideoPlayer> | null>(null);
 
@@ -27,7 +24,7 @@
 			if (fullscreen)
 				player.value?.exitFullscreen?.();
 			else if (i.canGoBack)
-				tarvel.back();
+				emit('exit');
 		});
 	});
 
@@ -36,6 +33,9 @@
 	});
 
 	const props = defineProps<{ src : string; }>();
+	const emit = defineEmits<{
+		exit : [];
+	}>();
 
 	function in_video () {
 		fullscreen = true;

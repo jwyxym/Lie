@@ -70,8 +70,9 @@
 	</div>
 </template>
 <script setup lang = 'ts'>
-	import { watch, ref } from 'vue';
+	import { watch, ref, onUnmounted, onMounted } from 'vue';
 	import { useRoute } from 'vue-router';
+	import { onBackButtonPress } from '@tauri-apps/api/app';
 
 	import { type AniInfo, get_ani } from '@/script/invoke';
 	import { useTravel } from '@/script/travel';
@@ -88,6 +89,22 @@
 			ani.value = i;
 		});
 	}, { immediate : true });
+
+	let listener: Awaited<ReturnType<typeof onBackButtonPress>> | undefined;
+	onMounted(async () => {
+		listener = await onBackButtonPress((i) => {
+			if (i.canGoBack)
+				to_home(
+					route.query.home as string,
+					route.query.day as string,
+					route.query.search as string
+				);
+		});
+	});
+
+	onUnmounted(() => {
+		listener?.unregister();
+	});
 </script>
 <style scoped lang = 'scss'>
 	.anima {
