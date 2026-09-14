@@ -36,7 +36,7 @@
 	import { useRoute } from 'vue-router';
 	import { onBackButtonPress } from '@tauri-apps/api/app';
 	import { exit } from '@tauri-apps/plugin-process';
-import { Snackbar } from '@varlet/ui';
+	import { Snackbar } from '@varlet/ui';
 
 	import schedule from './schedule.vue';
 	import browse from './browse.vue';
