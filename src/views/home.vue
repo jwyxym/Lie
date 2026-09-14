@@ -36,6 +36,7 @@
 	import { useRoute } from 'vue-router';
 	import { onBackButtonPress } from '@tauri-apps/api/app';
 	import { exit } from '@tauri-apps/plugin-process';
+import { Snackbar } from '@varlet/ui';
 
 	import schedule from './schedule.vue';
 	import browse from './browse.vue';
@@ -76,10 +77,20 @@
 	});
 
 	let listener: Awaited<ReturnType<typeof onBackButtonPress>> | undefined;
+	let count = 0;
 	onMounted(async () => {
 		listener = await onBackButtonPress((i) => {
-			if (i.canGoBack)
+			if (!i.canGoBack)
+				return;
+			if (count)
 				exit(1);
+			else {
+				count++;
+				Snackbar.info('再次点击退出');
+				setTimeout(() => {
+					count = 0;
+				}, 1000);
+			}
 		});
 	});
 

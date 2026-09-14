@@ -12,6 +12,7 @@ pub static PATH: OnceLock<PathBuf> = OnceLock::new();
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             api::get_ani,
             api::get_browse,
