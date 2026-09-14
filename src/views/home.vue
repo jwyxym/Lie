@@ -79,9 +79,7 @@ import { Snackbar } from '@varlet/ui';
 	let listener: Awaited<ReturnType<typeof onBackButtonPress>> | undefined;
 	let count = 0;
 	onMounted(async () => {
-		listener = await onBackButtonPress((i) => {
-			if (!i.canGoBack)
-				return;
+		listener = await onBackButtonPress(() => {
 			if (count)
 				exit(1);
 			else {
@@ -89,7 +87,7 @@ import { Snackbar } from '@varlet/ui';
 				Snackbar.info('再次点击退出');
 				setTimeout(() => {
 					count = 0;
-				}, 1000);
+				}, 2000);
 			}
 		});
 	});
