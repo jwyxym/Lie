@@ -67,8 +67,9 @@
 	</div>
 </template>
 <script setup lang = 'ts'>
-	import { watch, reactive } from 'vue';
+	import { watch, reactive, onMounted, onUnmounted } from 'vue';
 	import { useRoute } from 'vue-router';
+	import { onBackButtonPress } from '@tauri-apps/api/app';
 
 	import { get_ani, get_video, type Anthology } from '@/script/invoke';
 	import { useTravel } from '@/script/travel';
@@ -86,6 +87,24 @@
 	});
 
 	let request = 0;
+
+	let listener: Awaited<ReturnType<typeof onBackButtonPress>> | undefined;
+	onMounted(async () => {
+		listener = await onBackButtonPress(() => {
+			if (video.src)
+				return;
+			to_ani(
+				route.query.back as string,
+				route.query.home as string,
+				route.query.day as string,
+				route.query.search as string
+			);
+		});
+	});
+
+	onUnmounted(() => {
+		listener?.unregister();
+	});
 
 	watch(() => [route.query.url, route.query.back, route.query.name] as const,
 		async ([url, back, name]) => {
