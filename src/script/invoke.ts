@@ -11,6 +11,11 @@ export interface Item  {
 
 export type Items = Array<Item>;
 
+export interface BrowseResult {
+	list : Items;
+	hasMore : boolean;
+};
+
 export interface Schedule {
 	[key : number] : Items
 };
@@ -23,16 +28,6 @@ export interface AniInfo {
 	desc : string;
 	date : string;
 	links : Anthology;
-};
-
-export interface Verify {
-	Image : VerifyImage
-	Data : Array<[string, string, string]>
-};
-
-export interface VerifyImage {
-	bytes : number[];
-	mime : string;
 };
 
 export async function get_ani (url : string) : Promise<AniInfo | undefined> {
@@ -65,27 +60,13 @@ export async function get_schedule () : Promise<Schedule> {
 	}
 };
 
-export async function get_browse (status : number, year : number, page : number) : Promise<Items> {
+export async function get_browse (status : number, year : number, page : number) : Promise<BrowseResult | undefined> {
 	try {
-		return JSON.parse(await invoke<string>('get_browse', { status, year, page }))
-			.list
-			.map((i : {
-				vod_pic : string;
-				vod_name : string;
-				vod_blurb : string;
-				url : string;
-			}) => {
-				return {
-					name : i.vod_name,
-					url : "https://anime.xifanacg.com" + i.url,
-					img : i.vod_pic,
-					desc : i.vod_blurb
-				};
-			});
+		return await invoke<BrowseResult>('get_browse', { status, year, page });
 	} catch (e) {
 		//@ts-ignore
 		Snackbar['error'](e.toString());
-		return [];
+		return undefined;
 	}
 };
 
@@ -99,29 +80,12 @@ export async function get_video (url : string) : Promise<string> {
 	}
 }
 
-export async function get_verify_image (keyword: string) : Promise<Verify | undefined> {
+export async function get_search (keyword : string, page : number = 1) : Promise<BrowseResult | undefined> {
 	try {
-		return await invoke<Verify>('get_verify_image', { keyword });
+		return await invoke<BrowseResult>('get_search', { keyword, page });
 	} catch (e) {
 		//@ts-ignore
 		Snackbar['error'](e.toString());
 		return undefined;
-	}
-}
-
-export async function verify_search (verify : string, keyword : string) : Promise<Items> {
-	try {
-		return (await invoke<Array<[string, string, string]>>('verify_search', { verify, keyword }))
-			.map(i => {
-				return {
-					name : i[0],
-					url : "https://anime.xifanacg.com" + i[1],
-					img : i[2]
-				}
-			});
-	} catch (e) {
-		//@ts-ignore
-		Snackbar['error'](e.toString());
-		return [];
 	}
 }

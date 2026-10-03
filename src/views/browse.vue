@@ -51,9 +51,9 @@
 		<var-list
 			:finished = 'browse.finished'
 			v-model:loading = 'browse.loading'
+			v-model:error = 'browse.error'
 			@load = 'browse.load()'
 			class = 'no-scrollbar'
-			ref = 'list'
 			@scroll = 'browse.load_on'
 		>
 			<card
@@ -64,11 +64,11 @@
 	</div>
 </template>
 <script setup lang = 'ts'>
-	import { onBeforeMount, reactive, ref } from 'vue';
+	import { onBeforeMount, reactive } from 'vue';
 	import { get_browse, type Items } from '@/script/invoke';
 	import card from '@/ui/card.vue';
 
-	const list = ref(null);
+	let request = 0;
 
 	const browse = reactive({
 		btn : [false, false],
@@ -80,38 +80,55 @@
 			if (this.year === year)
 				return;
 			this.year = year;
-			this.ct = 1;
-			this.finished = false;
-			this.list.length = 0;
-			//@ts-ignore
-			list.value?.load?.();
+			this.reset();
 		},
 		select_status (status : number) {
 			if (this.status === status)
 				return;
 			this.status = status;
+			this.reset();
+		},
+		reset () {
+			request ++;
 			this.ct = 1;
 			this.finished = false;
+			this.error = false;
+			this.loaded = false;
+			this.loading = false;
 			this.list.length = 0;
-			//@ts-ignore
-			list.value?.load?.();
+			void this.load();
 		},
 		loaded : false,
 		loading : false,
 		finished : false,
-		load () {
-			if (this.loaded)
+		error : false,
+		async load () {
+			if (this.loaded || this.finished || this.error)
 				return;
 			this.loaded = true;
-			get_browse(this.status, this.year, this.ct ++).then(i => {
-				i.length
-					? this.list.push(...i)
-					: this.finished = true;
-				this.loading = false;
-				this.loaded = false;
-			});
+			this.loading = true;
+			const id = ++ request;
+			try {
+				const result = await get_browse(this.status, this.year, this.ct);
+				if (id !== request)
+					return;
+				if (!result) {
+					this.error = true;
+					return;
+				}
+				this.list.push(...result.list);
+				this.ct ++;
+				this.finished = !result.hasMore;
+			} finally {
+				if (id === request) {
+					this.loading = false;
+					this.loaded = false;
+				}
+			}
 		},
 		load_on (event : Event) {
+			if (!browse.list.length)
+				return;
 			const { scrollTop, scrollHeight, clientHeight } = event.target as HTMLElement;
 			if (scrollHeight / browse.list.length < scrollHeight - scrollTop - clientHeight)
 				return;
@@ -123,8 +140,9 @@
 	onBeforeMount(() => {
 		browse.years.push(['全部', 0]);
 		const year = new Date().getFullYear();
-		for (let i = year; i >= 2010; i --)
+		for (let i = year; i >= 2007; i --)
 			browse.years.push([i.toString(), i]);
+		browse.years.push(['更早', -1]);
 	});
 </script>
 <style scoped lang = 'scss'>

@@ -14,48 +14,26 @@
 				variant = 'outlined'
 				size = 'small'
 				clearable
-				@keydown = 'page.keydown($event)'
-				@clear = 'page.clear_verify()'
-			/>
-			<var-chip
-				plain
-				type = 'primary'
-				@click = 'page.get_verify()'
-			>
-				搜索
-			</var-chip>
-		</div>
-		<div
-			v-if = 'page.verify_src'
-			class = 'verify'
-			key = '1'
-		>
-			<var-input
-				v-model = 'page.verify'
-				placeholder = '请输入图片中的验证码'
-				variant = 'outlined'
-				size = 'small'
-				clearable
-				@keyup.enter = 'page.search()'
+				@keydown.enter = 'page.search($event)'
+				@clear = 'page.clear()'
 			/>
 			<var-chip
 				plain
 				type = 'primary'
 				@click = 'page.search()'
 			>
-				验证
+				搜索
 			</var-chip>
-			<img
-				:src = 'page.verify_src'
-				alt = '验证码，点击刷新'
-				@click = 'page.get_verify()'
-			/>
-			<var-skeleton :loading = 'page.loading' v-if = '!page.items.length'/>
 		</div>
-		<div
-			v-if = 'page.items.length'
+		<var-list
+			v-if = 'page.searched'
 			class = 'results no-scrollbar'
-			:style = "{ '--top' : page.top }"
+			v-model:loading = 'page.loading'
+			v-model:error = 'page.error'
+			:finished = 'page.finished'
+			:finished-text = "page.items.length ? '没有更多了' : '未找到相关番剧'"
+			:immediate-check = 'false'
+			@load = 'page.load()'
 			key = '2'
 		>
 			<card
@@ -63,79 +41,77 @@
 				:key = 'item.url'
 				:item = 'item'
 			/>
-		</div>
+		</var-list>
 	</TransitionGroup>
 </template>
 <script setup lang = 'ts'>
-	import { computed, onBeforeMount, onBeforeUnmount, reactive } from 'vue';
-	import { get_verify_image, verify_search, type Items } from '@/script/invoke';
+	import { onBeforeMount, onBeforeUnmount, reactive } from 'vue';
+	import { get_search, type Items } from '@/script/invoke';
 	import Card from '@/ui/card.vue';
+
+	let request = 0;
 
 	const page = reactive({
 		keywords : '',
-		verify : '',
-		verify_src : '',
+		query : '',
+		ct : 1,
 		loading : false,
-		top : computed(() : string => {
-			return (page.verify_src ? 180 : 60) + 'px';
-		}),
+		error : false,
+		finished : false,
+		searched : false,
 		items : [] as Items,
 		submitting : false,
-		get_verify : function () {
-			const keywords = page.keywords?.trim();
-			if (!keywords) {
-				page.items.length = 0;
-				return emit('update:modelValue', '');
-			}
-			get_verify_image(keywords)
-				.then((i) => {
-					if (i?.Image) {
-						this.clear_verify();
-						this.verify = '';
-						this.verify_src = URL.createObjectURL(new Blob([
-							new Uint8Array(i.Image.bytes)
-						], { type: i.Image.mime }));
-					} else if (i) {
-						page.items.length = 0;
-						this.clear_verify();
-						setTimeout(() => {
-							emit('update:modelValue', keywords);
-							page.items = i.Data
-								.map(i => {
-									return {
-										name : i[0],
-										url : "https://anime.xifanacg.com" + i[1],
-										img : i[2]
-									}
-								});
-						}, 200);
-					}
-				});
+		search (event ?: KeyboardEvent) {
+			if (event?.isComposing)
+				return;
+			const keywords = this.keywords.trim();
+			this.reset();
+			this.query = keywords;
+			emit('update:modelValue', keywords);
+			if (!keywords)
+				return;
+			this.searched = true;
+			void this.load();
 		},
-		search : function () {
-			const keywords = page.keywords?.trim();
-			if (!keywords || !page.verify?.trim()) return;
-			this.loading = true;
-			verify_search(page.verify.trim(), keywords)
-				.then((i) => {
-					this.clear_verify();
-					setTimeout(() => {
-						emit('update:modelValue', keywords);
-						page.items = i
-					}, 200);
-				});
-		},
-		clear_verify : function () {
-			if (this.verify_src)
-				URL.revokeObjectURL(this.verify_src);
-			this.verify_src = '';
+		reset () {
+			request ++;
+			this.ct = 1;
+			this.items = [];
 			this.loading = false;
+			this.submitting = false;
+			this.error = false;
+			this.finished = false;
+			this.searched = false;
 		},
-		keydown : function (event : KeyboardEvent) {
-			if (event.key === 'Enter')
-				this.get_verify();
-			else
-				this.clear_verify();
+		clear () {
+			this.reset();
+			this.keywords = '';
+			this.query = '';
+			emit('update:modelValue', '');
+		},
+		async load () {
+			if (!this.query || this.submitting || this.finished || this.error)
+				return;
+			const id = ++ request;
+			this.loading = true;
+			this.submitting = true;
+			try {
+				const result = await get_search(this.query, this.ct);
+				if (id !== request)
+					return;
+				if (!result) {
+					this.error = true;
+					return;
+				}
+				this.items.push(...result.list);
+				this.ct ++;
+				this.finished = !result.hasMore;
+			} finally {
+				if (id === request) {
+					this.loading = false;
+					this.submitting = false;
+				}
+			}
 		}
 	});
 
@@ -150,12 +126,12 @@
 	onBeforeMount(() => {
 		if (props.modelValue) {
 			page.keywords = props.modelValue;
-			page.get_verify();
+			page.search();
 		}
 	});
 
 	onBeforeUnmount(() => {
-		page.clear_verify();
+		request ++;
 	});
 </script>
 <style scoped lang = 'scss'>
@@ -167,8 +143,7 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 10px;
-		.input,
-		.verify {
+		.input {
 			height: 60px;
 			width: 90%;
 			display: flex;
@@ -185,15 +160,12 @@
 			.var-input {
 				width: calc(100% - 80px);
 			}
-			img {
-				height: 50px;
-			}
 		}
 		.results {
 			position: absolute;
 			top: 0;
-  			transform: translateX(var(--move-x, 0)) translateY(var(--top));
-			height: calc(100% - var(--top));
+			transform: translateX(var(--move-x, 0)) translateY(60px);
+			height: calc(100% - 60px);
 			width: 100%;
 			overflow-y: auto;
 			display: flex;

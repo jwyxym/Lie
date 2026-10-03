@@ -13,14 +13,13 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
-        .invoke_handler(tauri::generate_handler![
-            api::get_ani,
-            api::get_browse,
-            api::get_schedule,
-            api::get_video,
-            api::get_verify_image,
-            api::verify_search
-        ])
+		.invoke_handler(tauri::generate_handler![
+			api::get_ani,
+			api::get_browse,
+			api::get_schedule,
+			api::get_video,
+			api::get_search
+		])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
