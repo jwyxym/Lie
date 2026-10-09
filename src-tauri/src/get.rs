@@ -17,7 +17,7 @@ use anyhow::{Error, Result, anyhow};
 use std::{io::Read, sync::LazyLock};
 use ureq::{Body, BodyReader, http::Response};
 
-const NEXT_BASE_URL: &str = "https://next.xifanacg.com";
+const NEXT_BASE_URL: &str = "https://lie.ygopro3.cn";
 pub(super) static AGENT: LazyLock<ureq::Agent> = LazyLock::new(ureq::agent);
 
 async fn get(url: &str) -> Result<String, Error> {

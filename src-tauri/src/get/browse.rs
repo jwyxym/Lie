@@ -62,7 +62,8 @@ pub async fn browse(status: u8, year: i64, page: i64) -> Result<BrowseResult, Er
 		let value: Value = serde_json::from_str(&script.text().collect::<String>())
 			.context("invalid browse structured data")?;
 		if value["@type"] == "ItemList"
-			&& value["@id"] == format!("{NEXT_BASE_URL}/browse#item-list")
+			&& value["@id"].as_str().and_then(|id| url.join(id).ok())
+				.is_some_and(|id| id.path() == "/browse" && id.fragment() == Some("item-list"))
 		{
 			items = Some(serde_json::from_value::<ItemList>(value)
 				.context("invalid browse item list")?);
@@ -86,7 +87,12 @@ pub async fn browse(status: u8, year: i64, page: i64) -> Result<BrowseResult, Er
 		if anime.name.trim().is_empty() || anime.url.trim().is_empty() {
 			return Err(anyhow!("browse item is missing a title or URL"));
 		}
-		let item_url = url.join(&anime.url)?.to_string();
+		// Structured data retains the original site's domain when served through a mirror.
+		let mut item_url = url.join(&anime.url)?;
+		item_url.set_scheme(url.scheme()).map_err(|_| anyhow!("invalid browse item URL scheme"))?;
+		item_url.set_host(url.host_str())?;
+		item_url.set_port(url.port()).map_err(|_| anyhow!("invalid browse item URL port"))?;
+		let item_url = item_url.to_string();
 		let desc = descriptions.remove(&item_url).or(anime.date).unwrap_or_default();
 		list.push(BrowseItem {
 			name: anime.name,
