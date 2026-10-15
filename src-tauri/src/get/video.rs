@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 use std::time::Duration;
 use tauri::Url;
 
-const PLAYBACK_API: &str = "https://api.xifanacg.com/functions/v1/issue-web-playback";
+const PLAYBACK_API: &str = "https://api.lie.ygopro3.cn/functions/v1/issue-web-playback";
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]

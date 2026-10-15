@@ -5,7 +5,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::time::Duration;
 
-const SEARCH_API: &str = "https://api.xifanacg.com/rest/v1/rpc/search_animes";
+const SEARCH_API: &str = "https://api.lie.ygopro3.cn/rest/v1/rpc/search_animes";
 const PAGE_SIZE: u64 = 24;
 
 #[derive(Deserialize)]
