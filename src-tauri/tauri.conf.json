@@ -19,7 +19,7 @@
     "security": {
       "assetProtocol": {
         "enable": true,
-        "scope": []
+        "scope": ["**"]
       },
       "csp": {
         "img-src": "'self' asset: http: https: blob: data:",
