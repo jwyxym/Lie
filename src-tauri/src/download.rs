@@ -16,7 +16,7 @@ use std::{
 	sync::{Arc, Mutex, MutexGuard},
 	time::{Duration, Instant},
 };
-use tauri::{AppHandle, Manager, State, Url, async_runtime::JoinHandle, ipc::Response as IpcResponse};
+use tauri::{AppHandle, Manager, State, Url, Wry, async_runtime::JoinHandle, ipc::Response as IpcResponse, plugin::{Builder as PluginBuilder, TauriPlugin}};
 use tokio::{fs::File, io::AsyncWriteExt, sync::{OwnedSemaphorePermit, Semaphore, watch}};
 
 #[derive(Clone, Serialize)]
@@ -38,6 +38,13 @@ pub struct Download {
 	error: String,
 }
 
+impl Download {
+	#[cfg(target_os = "android")]
+	pub(crate) fn is_active(&self) -> bool {
+		matches!(self.status.as_str(), "queued" | "downloading" | "merging")
+	}
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadRequest {
@@ -52,6 +59,7 @@ pub struct DownloadRequest {
 struct Job {
 	cancel: watch::Sender<bool>,
 	finished: watch::Sender<bool>,
+	cancel_reason: Mutex<Option<String>>,
 }
 
 impl CancelToken for Job {
@@ -79,6 +87,110 @@ pub struct Downloads {
 }
 
 const COLUMNS: &str = "id, anime_id, episode_id, anime_title, episode_title, source, page_url, status, downloaded_bytes, total_bytes, completed_segments, total_segments, error, cover_url";
+
+#[cfg(target_os = "android")]
+mod android_background {
+	use super::*;
+	use anyhow::Context;
+	use serde::{Deserialize, Serialize};
+	use serde_json::Value;
+	use std::{sync::{Arc, Mutex}, time::{Duration, Instant}};
+	use tauri::{Manager, ipc::{Channel, InvokeResponseBody}, plugin::{PluginApi, PluginHandle}};
+
+	struct Background {
+		handle: PluginHandle<Wry>,
+		events: Channel<Value>,
+		last_prepare: Mutex<Option<Instant>>,
+	}
+
+	#[derive(Deserialize)]
+	struct NativeEvent {
+		action: String,
+		#[serde(default)]
+		id: i64,
+	}
+
+	#[derive(Serialize)]
+	struct Preparation<'a> {
+		events: &'a Channel<Value>,
+	}
+
+	#[derive(Serialize)]
+	#[serde(rename_all = "camelCase")]
+	struct Snapshot {
+		tasks: Vec<Download>,
+		started_id: Option<i64>,
+	}
+
+	pub fn initialize(app: &AppHandle, api: PluginApi<Wry, ()>) -> Result<()> {
+		let handle: PluginHandle<Wry> = api.register_android_plugin("cn.jwyxym.lie", "DownloadPlugin")?;
+		let callback_app: AppHandle = app.clone();
+		let events: Channel<Value> = Channel::new(move |body: InvokeResponseBody| {
+			let event: NativeEvent = body.deserialize()?;
+			if let Some(downloads) = callback_app.try_state::<Arc<Downloads>>() {
+				match event.action.as_str() {
+					"cancel" => { let _ = downloads.cancel(event.id, "下载已取消"); }
+					"timeout" => { let _ = downloads.cancel_all("后台下载达到系统时限，请返回应用重试"); }
+					"stopped" => { let _ = downloads.cancel_all("后台下载服务已停止，请重试"); }
+					_ => {}
+				}
+			}
+			Ok(())
+		});
+		app.manage(Background { handle, events, last_prepare: Mutex::new(None) });
+		let monitor_app: AppHandle = app.clone();
+		tauri::async_runtime::spawn(async move {
+			loop {
+				tokio::time::sleep(Duration::from_secs(1)).await;
+				let background: State<'_, Background> = monitor_app.state::<Background>();
+				let prepared: Option<Instant> = background.last_prepare.lock().ok().and_then(|value| *value);
+				let Some(prepared) = prepared else { continue; };
+				let Some(downloads) = monitor_app.try_state::<Arc<Downloads>>() else { continue; };
+				let Ok(tasks) = downloads.list() else { continue; };
+				let active: bool = tasks.iter().any(Download::is_active);
+				let result: Result<(), _> = background.handle.run_mobile_plugin_async("update", Snapshot { tasks, started_id: None }).await;
+				if let Err(error) = result {
+					let _ = downloads.cancel_all(&format!("无法更新后台下载服务：{error}"));
+				}
+				if !active && prepared.elapsed() >= Duration::from_secs(5) {
+					if let Ok(mut latest) = background.last_prepare.lock() {
+						if *latest == Some(prepared) { *latest = None; }
+					}
+				}
+			}
+		});
+		Ok(())
+	}
+
+	pub async fn prepare(app: &AppHandle) -> Result<()> {
+		let background: State<'_, Background> = app.state::<Background>();
+		let _: Value = background.handle.run_mobile_plugin_async("prepare", Preparation { events: &background.events })
+			.await.context("无法启动安卓后台下载服务")?;
+		*background.last_prepare.lock().map_err(|_| anyhow::anyhow!("后台下载服务状态不可用"))? = Some(Instant::now());
+		Ok(())
+	}
+
+	pub async fn take_open(app: &AppHandle) -> Result<bool> {
+		let background: State<'_, Background> = app.state::<Background>();
+		background.handle.run_mobile_plugin_async("takeOpen", ()).await.map_err(Into::into)
+	}
+
+	pub async fn track(app: &AppHandle, id: i64) -> Result<()> {
+		let tasks: Vec<Download> = app.state::<Arc<Downloads>>().list()?;
+		app.state::<Background>().handle.run_mobile_plugin_async("update", Snapshot { tasks, started_id: Some(id) })
+			.await.map_err(Into::into)
+	}
+}
+
+pub fn background_plugin() -> TauriPlugin<Wry> {
+	PluginBuilder::new("download-background")
+		.setup(|_app: &AppHandle, _api| {
+			#[cfg(target_os = "android")]
+			android_background::initialize(_app, _api)?;
+			Ok(())
+		})
+		.build()
+}
 
 fn lock<T>(mutex: &Mutex<T>) -> Result<MutexGuard<'_, T>> {
 	mutex.lock().map_err(|_| anyhow!("缓存状态锁不可用，请重启应用"))
@@ -174,11 +286,29 @@ impl Downloads {
 		Ok(())
 	}
 
-	fn list(&self) -> Result<Vec<Download>> {
+	pub(crate) fn list(&self) -> Result<Vec<Download>> {
 		let db: MutexGuard<'_, Connection> = lock(&self.db)?;
 		let mut statement: Statement<'_> = db.prepare(&format!("SELECT {COLUMNS} FROM downloads ORDER BY anime_id, CAST(episode_id AS INTEGER), id"))?;
 		let rows: Vec<Download> = statement.query_map([], read_download)?.collect::<rusqlite::Result<_>>()?;
 		Ok(rows)
+	}
+
+	#[cfg(target_os = "android")]
+	pub(crate) fn cancel(&self, id: i64, reason: &str) -> Result<()> {
+		if let Some(job) = lock(&self.jobs)?.get(&id) {
+			*lock(&job.cancel_reason)? = Some(reason.to_owned());
+			job.cancel.send_replace(true);
+		}
+		Ok(())
+	}
+
+	#[cfg(target_os = "android")]
+	pub(crate) fn cancel_all(&self, reason: &str) -> Result<()> {
+		for job in lock(&self.jobs)?.values() {
+			*lock(&job.cancel_reason)? = Some(reason.to_owned());
+			job.cancel.send_replace(true);
+		}
+		Ok(())
 	}
 
 	fn fail(&self, id: i64, message: &str) -> Result<()> {
@@ -229,12 +359,13 @@ impl Downloads {
 		};
 		let (cancel, _): (watch::Sender<bool>, watch::Receiver<bool>) = watch::channel(false);
 		let (finished, _): (watch::Sender<bool>, watch::Receiver<bool>) = watch::channel(false);
-		let job: Arc<Job> = Arc::new(Job { cancel, finished });
+		let job: Arc<Job> = Arc::new(Job { cancel, finished, cancel_reason: Mutex::new(None) });
 		jobs.insert(id, job.clone());
 		let manager: Arc<Self> = self.clone();
 		tauri::async_runtime::spawn(async move {
 			let outcome: Result<()> = manager.run(id, request.page_url, job.clone()).await;
 			if let Err(error) = outcome {
+				let error: String = lock(&job.cancel_reason).ok().and_then(|reason| reason.clone()).unwrap_or_else(|| format!("{error:#}"));
 				let cleanup: Result<()> = manager.remove_files(id);
 				let message: String = match cleanup {
 					Ok(()) => format!("{error:#}"),
@@ -350,8 +481,24 @@ pub fn list_downloads(state: State<'_, Arc<Downloads>>) -> Result<Vec<Download>,
 }
 
 #[tauri::command]
-pub fn start_download(request: DownloadRequest, state: State<'_, Arc<Downloads>>) -> Result<i64, String> {
-	state.inner().start(request).map_err(|error: anyhow::Error| format!("{error:#}"))
+pub async fn start_download(_app: AppHandle, request: DownloadRequest, state: State<'_, Arc<Downloads>>) -> Result<i64, String> {
+	#[cfg(target_os = "android")]
+	android_background::prepare(&_app).await.map_err(|error: anyhow::Error| format!("{error:#}"))?;
+	let id: i64 = state.inner().start(request).map_err(|error: anyhow::Error| format!("{error:#}"))?;
+	#[cfg(target_os = "android")]
+	if let Err(error) = android_background::track(&_app, id).await {
+		let _ = state.cancel(id, "无法更新安卓后台下载服务，请重试");
+		return Err(format!("无法更新安卓后台下载服务：{error:#}"));
+	}
+	Ok(id)
+}
+
+#[tauri::command]
+pub async fn take_download_notification(_app: AppHandle) -> Result<bool, String> {
+	#[cfg(target_os = "android")]
+	return android_background::take_open(&_app).await.map_err(|error: anyhow::Error| format!("{error:#}"));
+	#[cfg(not(target_os = "android"))]
+	Ok(false)
 }
 
 #[tauri::command]

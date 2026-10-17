@@ -2,8 +2,29 @@
 	<router-view/>
 </template>
 <script setup lang = 'ts'>
-	import { onBeforeMount } from 'vue';
+	import { onBeforeMount, onMounted, onUnmounted } from 'vue';
 	import { Themes, StyleProvider } from '@varlet/ui';
+	import { invoke } from '@tauri-apps/api/core';
+	import { useRouter, type Router } from 'vue-router';
+
+	const router : Router = useRouter();
+	const openDownloads = async () : Promise<void> => {
+		if (!window.LieAndroid && !/Android/i.test(navigator.userAgent)) return;
+		try {
+			if (await invoke<boolean>('take_download_notification')) {
+				await router.push({ name : 'home', query : { home : '3' } });
+			}
+		} catch (error : unknown) { console.error('读取下载通知跳转失败', error); }
+	};
+	onMounted(() : void => {
+		void openDownloads();
+		window.addEventListener('focus', openDownloads);
+		document.addEventListener('visibilitychange', openDownloads);
+	});
+	onUnmounted(() : void => {
+		window.removeEventListener('focus', openDownloads);
+		document.removeEventListener('visibilitychange', openDownloads);
+	});
 
 	onBeforeMount(() => {
 		StyleProvider(Themes.md3Light);

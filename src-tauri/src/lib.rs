@@ -18,6 +18,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
+		.plugin(download::background_plugin())
 		.setup(|app: &mut App| {
 			let downloads: download::Downloads = download::Downloads::initialize(app.handle())?;
 			app.asset_protocol_scope().allow_directory(downloads.directory(), true)?;
@@ -38,7 +39,8 @@ pub fn run() {
 			download::cached_video_size,
 			download::download_directory,
 			download::get_watch_position,
-			download::save_watch_position
+			download::save_watch_position,
+			download::take_download_notification
 		])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
