@@ -2,6 +2,7 @@
 	<div class = 'anima'>
 		<var-app-bar
 			:title = 'ani?.name'
+			title-position = 'left'
 		>
 			<template #left>
 				<var-button
@@ -61,7 +62,8 @@
 							ani.name, select,
 							route.query.home as string,
 							route.query.day as string,
-							route.query.search as string
+							route.query.search as string,
+							ani.img
 						)'
 					>{{ i.name }}</var-button>
 				</var-space>
@@ -110,15 +112,6 @@
 	.anima {
 		width: 100%;
 		height: 100%;
-		:deep(.var-app-bar) {
-			width: 100%;
-			.var-app-bar__toolbar {
-				width: 100%;
-				.var-app-bar__left {
-					width: calc(100% - 40px);
-				}
-			}
-		}
 		.content {
 			width: 100%;
 			height: calc(100% - 54px);

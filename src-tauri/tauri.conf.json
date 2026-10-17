@@ -17,8 +17,13 @@
       }
     ],
     "security": {
+      "assetProtocol": {
+        "enable": true,
+        "scope": []
+      },
       "csp": {
         "img-src": "'self' asset: http: https: blob: data:",
+        "media-src": "'self' asset: http: https: blob: data:",
         "script-src": "'self' 'wasm-unsafe-eval'"
       }
     }

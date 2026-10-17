@@ -1,7 +1,7 @@
-import { useRouter } from 'vue-router';
+import { useRouter, type Router } from 'vue-router';
 
 export function useTravel () {
-	const router = useRouter();
+	const router : Router = useRouter();
 
 	function to_ani (url : string, home : string, day : string, search : string) {
 		router.push({
@@ -10,18 +10,19 @@ export function useTravel () {
 		});
 	};
 
-	function to_video (
+	const to_video = (
 		url : string,
 		back : string,
 		name : string,
 		page : number,
 		home : string,
 		day : string,
-		search : string
-	) {
+		search : string,
+		cover : string = ''
+	) : void => {
 		router.push({
 			name: 'video',
-			query: { url, back, name, page, home, day, search }
+			query: { url, back, name, page, home, day, search, cover }
 		});
 	};
 
