@@ -3,6 +3,7 @@ mod get;
 mod download;
 mod hls;
 mod media;
+mod database;
 
 use std::{
 	path::PathBuf,
@@ -33,7 +34,9 @@ pub fn run() {
 			download::start_download,
 			download::delete_download,
 			download::cached_video,
-			download::download_directory
+			download::download_directory,
+			download::get_watch_position,
+			download::save_watch_position
 		])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

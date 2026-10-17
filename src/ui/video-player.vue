@@ -1,13 +1,15 @@
 <template>
-	<VideoPlayer
-		ref = 'player'
-		:src = 'props.src'
-		:download = '!!props.cacheRequest'
-		:playback-rates = '[0.5, 1, 1.5, 2, 2.5, 3, 4, 5]'
-		@enter-fullscreen = 'in_video'
-		@exit-fullscreen = 'out_video'
-		@download = 'download'
-	/>
+	<div ref = 'container'>
+		<VideoPlayer
+			ref = 'player'
+			:src = 'props.src'
+			:download = '!!props.cacheRequest'
+			:playback-rates = '[0.5, 1, 1.5, 2, 2.5, 3, 4, 5]'
+			@enter-fullscreen = 'in_video'
+			@exit-fullscreen = 'out_video'
+			@download = 'download'
+		/>
+	</div>
 </template>
 
 <script setup lang = 'ts'>
@@ -17,10 +19,13 @@
 	import { VideoPlayer } from '@jwyxym/video-player';
 	import '@jwyxym/video-player/style.css';
 	import { cachedVideo, downloadStatus, listDownloads, startDownload, type Download, type DownloadRequest } from '@/script/downloads';
+	import { useWatchPosition } from '@/script/watch-position';
 
 	type Player = InstanceType<typeof VideoPlayer>;
 	const player : Ref<Player | null> = ref<Player | null>(null);
-	const props : { src : string; cacheRequest? : DownloadRequest; } = defineProps<{ src : string; cacheRequest? : DownloadRequest; }>();
+	const props : { src : string; pageUrl : string; cacheRequest? : DownloadRequest; } = defineProps<{ src : string; pageUrl : string; cacheRequest? : DownloadRequest; }>();
+	const container : Ref<HTMLDivElement | null> = ref<HTMLDivElement | null>(null);
+	useWatchPosition(container, props.pageUrl);
 	const emit : (event : 'exit') => void = defineEmits<{ exit : []; }>();
 	const state : { fullscreen : boolean; downloading : boolean; } = reactive({ fullscreen: false, downloading: false });
 	let disposed : boolean = false;

@@ -102,10 +102,7 @@ impl Downloads {
 		let directory: PathBuf = app.path().video_dir()?.join("Lie");
 		fs::create_dir_all(&directory).context("无法创建视频缓存目录")?;
 		let directory: PathBuf = directory.canonicalize()?;
-		let data: PathBuf = app.path().app_data_dir()?;
-		fs::create_dir_all(&data)?;
-		let db: Connection = Connection::open(data.join("video-cache.sqlite3"))?;
-		db.busy_timeout(Duration::from_secs(5))?;
+		let db: Connection = crate::database::open(app)?;
 		db.execute_batch("PRAGMA journal_mode=WAL;
 			CREATE TABLE IF NOT EXISTS downloads (
 				id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -119,6 +116,12 @@ impl Downloads {
 				total_segments INTEGER NOT NULL DEFAULT 0,
 				error TEXT NOT NULL DEFAULT '',
 				UNIQUE(anime_id, episode_id)
+			);
+			CREATE TABLE IF NOT EXISTS watch_positions (
+				anime_id TEXT NOT NULL, episode_id TEXT NOT NULL,
+				position_seconds REAL NOT NULL, duration_seconds REAL NOT NULL,
+				updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+				PRIMARY KEY (anime_id, episode_id)
 			);
 			UPDATE downloads SET status='failed', error='下载被中断，请重试'
 			WHERE status IN ('queued', 'downloading', 'merging');")?;
@@ -388,4 +391,36 @@ pub fn cached_video(page_url: String, cover_url: Option<String>, state: State<'_
 #[tauri::command]
 pub fn download_directory(state: State<'_, Arc<Downloads>>) -> String {
 	state.directory.to_string_lossy().into_owned()
+}
+
+#[tauri::command]
+pub fn get_watch_position(page_url: String, state: State<'_, Arc<Downloads>>) -> Result<f64, String> {
+	let result: Result<f64> = (|| {
+		let (anime, episode, _): (String, String, String) = identity(&page_url)?;
+		let position: Option<f64> = lock(&state.db)?.query_row(
+			"SELECT position_seconds FROM watch_positions WHERE anime_id=?1 AND episode_id=?2",
+			params![anime, episode], |row: &Row<'_>| row.get(0),
+		).optional()?;
+		Ok(position.unwrap_or(0.0))
+	})();
+	result.map_err(|error: anyhow::Error| format!("{error:#}"))
+}
+
+#[tauri::command]
+pub fn save_watch_position(page_url: String, position: f64, duration: f64, state: State<'_, Arc<Downloads>>) -> Result<(), String> {
+	let result: Result<()> = (|| {
+		if !position.is_finite() || !duration.is_finite() || position < 0.0 || duration <= 0.0 {
+			bail!("无效的观看位置或视频时长");
+		}
+		let (anime, episode, _): (String, String, String) = identity(&page_url)?;
+		let position: f64 = if position >= duration { 0.0 } else { position };
+		lock(&state.db)?.execute(
+			"INSERT INTO watch_positions (anime_id, episode_id, position_seconds, duration_seconds)
+			VALUES (?1,?2,?3,?4) ON CONFLICT(anime_id, episode_id) DO UPDATE SET
+			position_seconds=excluded.position_seconds, duration_seconds=excluded.duration_seconds, updated_at=unixepoch()",
+			params![anime, episode, position, duration],
+		)?;
+		Ok(())
+	})();
+	result.map_err(|error: anyhow::Error| format!("{error:#}"))
 }

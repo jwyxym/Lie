@@ -29,8 +29,9 @@
 		<p v-if = 'video.error' role = 'alert'>{{ video.error }}</p>
 		<video-player
 			v-if = 'video.src'
-			:key = 'video.src'
+			:key = '`${video.pageUrl}:${video.src}`'
 			:src = 'video.src'
+			:page-url = 'video.pageUrl'
 			:cache-request = 'cacheRequest'
 			@exit = 'leaveVideo'
 		/>
@@ -81,10 +82,11 @@
 			parseInt(route.query.page as string), route.query.home as string, route.query.day as string, route.query.search as string, video.cover);
 	};
 
-	const video : { list : Anthology; cover : string; src : string; title : string; local : boolean; error : string; } = reactive({
+	const video : { list : Anthology; cover : string; src : string; pageUrl : string; title : string; local : boolean; error : string; } = reactive({
 		list : [] as Anthology,
 		cover : '',
 		src : '',
+		pageUrl : '',
 		title : '',
 		local : false,
 		error : ''
@@ -122,6 +124,7 @@
 
 			const id : number = ++ request;
 			video.src = '';
+			video.pageUrl = url;
 			video.list = [];
 			video.error = '';
 			video.local = false;
