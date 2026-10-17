@@ -60,7 +60,7 @@
 	import { useTravel } from '@/script/travel';
 	import VideoPlayer from '@/ui/video-player.vue';
 	import themes from '@/script/themes';
-	import { cachedVideo, listDownloads, type Download, type DownloadRequest } from '@/script/downloads';
+	import { cachedVideo, readCachedVideo, listDownloads, type Download, type DownloadRequest } from '@/script/downloads';
 
 	const { to_video, to_ani } = useTravel();
 	const route : RouteLocationNormalizedLoaded = useRoute();
@@ -118,7 +118,13 @@
 	});
 
 	watch(() : readonly unknown[] => [route.query.url, route.query.back, route.query.name, route.query.offline, route.query.episode, route.query.cover] as const,
-		async ([url, back, name] : readonly unknown[]) : Promise<void> => {
+		async function ([url, back, name] : readonly unknown[], _previous : readonly unknown[] | undefined, onCleanup : (cleanup : () => void) => void) : Promise<void> {
+			let blobUrl : string | undefined;
+			const controller : AbortController = new AbortController();
+			onCleanup(() : void => {
+				controller.abort();
+				if (blobUrl) URL.revokeObjectURL(blobUrl);
+			});
 			if (typeof url !== 'string')
 				return;
 
@@ -136,7 +142,14 @@
 				const local : string | undefined = await cachedVideo(url, video.cover);
 				if (id !== request) return;
 				if (local) {
-					video.src = local;
+					if (window.LieAndroid || /Android/i.test(navigator.userAgent)) {
+						const blob : Blob = await readCachedVideo(url, controller.signal);
+						if (id !== request || disposed) return;
+						blobUrl = URL.createObjectURL(blob);
+						video.src = blobUrl;
+					} else {
+						video.src = local;
+					}
 					video.local = true;
 					if (offline) {
 						const animeId : string | undefined = new URL(url).pathname.split('/')[2];
@@ -145,8 +158,8 @@
 						video.cover ||= items.find((item : Download) : boolean => item.animeId === animeId && !!item.coverUrl)?.coverUrl ?? '';
 						video.list = [items.filter((item : Download) : boolean => item.animeId === animeId && item.status === 'completed')
 							.map((item : Download) : { name : string; url : string; } => ({ name: item.episodeTitle, url: item.pageUrl }))];
+						return;
 					}
-					return;
 				}
 				if (offline) { video.error = '本地缓存文件不存在，请返回视频缓存页重新缓存'; return; }
 			} catch (error : unknown) {
@@ -158,9 +171,11 @@
 			const aniRequest : ReturnType<typeof get_ani> = typeof back === 'string'
 				? get_ani(back)
 				: Promise.resolve(undefined);
-			const src : string = await get_video(url);
-			if (id === request)
-				video.src = src;
+			if (!video.local) {
+				const src : string = await get_video(url);
+				if (id === request)
+					video.src = src;
+			}
 
 			const ani : Awaited<ReturnType<typeof get_ani>> = await aniRequest;
 			if (id === request && ani) {

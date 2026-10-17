@@ -43,6 +43,28 @@ export const cachedVideo = async (pageUrl : string, coverUrl? : string) : Promis
 	return path ? convertFileSrc(path) : undefined;
 };
 
+export const readCachedVideo = async (pageUrl : string, signal : AbortSignal) : Promise<Blob> => {
+	signal.throwIfAborted();
+	const total : number = await invoke<number>('cached_video_size', { pageUrl });
+	if (!Number.isSafeInteger(total) || total <= 0) throw new Error('缓存视频大小无效');
+	const parts : Blob[] = [];
+	try {
+		let offset : number = 0;
+		while (offset < total) {
+			signal.throwIfAborted();
+			const bytes : ArrayBuffer = await invoke<ArrayBuffer>('cached_video_bytes', { pageUrl, offset });
+			signal.throwIfAborted();
+			if (bytes.byteLength !== Math.min(200 * 1024 * 1024, total - offset)) throw new Error('缓存视频读取不完整');
+			// Keep immutable Blob parts rather than retaining every ArrayBuffer in the JS heap.
+			parts.push(new Blob([bytes]));
+			offset += bytes.byteLength;
+		}
+		return new Blob(parts, { type : 'video/mp4' });
+	} finally {
+		parts.length = 0;
+	}
+};
+
 export const formatBytes = (bytes : number) : string => {
 	if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
 	if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;

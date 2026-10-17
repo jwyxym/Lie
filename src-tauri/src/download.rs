@@ -10,12 +10,13 @@ use std::{
 	collections::HashMap,
 	fs,
 	future::Future,
+	io::{Read, Seek, SeekFrom},
 	path::{Path, PathBuf},
 	pin::Pin,
 	sync::{Arc, Mutex, MutexGuard},
 	time::{Duration, Instant},
 };
-use tauri::{AppHandle, Manager, State, Url, async_runtime::JoinHandle};
+use tauri::{AppHandle, Manager, State, Url, async_runtime::JoinHandle, ipc::Response as IpcResponse};
 use tokio::{fs::File, io::AsyncWriteExt, sync::{OwnedSemaphorePermit, Semaphore, watch}};
 
 #[derive(Clone, Serialize)]
@@ -152,6 +153,12 @@ impl Downloads {
 
 	fn file(&self, id: i64) -> PathBuf {
 		self.directory.join(id.to_string()).join("video.mp4")
+	}
+
+	fn completed_file(&self, page_url: &str) -> Result<PathBuf> {
+		let item: Download = self.find(page_url)?.context("本集尚未缓存")?;
+		if item.status != "completed" { bail!("本集尚未完成缓存"); }
+		Ok(self.file(item.id))
 	}
 
 	fn remove_files(&self, id: i64) -> Result<()> {
@@ -384,6 +391,39 @@ pub fn cached_video(page_url: String, cover_url: Option<String>, state: State<'_
 			}
 		}
 		Ok(None)
+	})();
+	result.map_err(|error: anyhow::Error| format!("{error:#}"))
+}
+
+#[tauri::command]
+pub async fn cached_video_bytes(page_url: String, offset: u64, state: State<'_, Arc<Downloads>>) -> Result<IpcResponse, String> {
+	if !cfg!(target_os = "android") {
+		return Err("仅安卓端通过二进制数据读取缓存视频".into());
+	}
+	let manager: Arc<Downloads> = Arc::clone(state.inner());
+	let bytes: Vec<u8> = tauri::async_runtime::spawn_blocking(move || -> Result<Vec<u8>> {
+		let path: PathBuf = manager.completed_file(&page_url)?;
+		let mut file: fs::File = fs::File::open(&path).context("无法读取本地缓存视频")?;
+		let total: u64 = file.metadata()?.len();
+		if offset >= total { bail!("缓存视频读取位置超出文件范围"); }
+		// Android's JNI response is copied into a Java byte array. Never send the whole video.
+		let length: usize = (total - offset).min(200 * 1024 * 1024).try_into()?;
+		let mut bytes: Vec<u8> = vec![0; length];
+		file.seek(SeekFrom::Start(offset))?;
+		file.read_exact(&mut bytes).context("缓存视频读取不完整，请检查文件是否被删除或修改")?;
+		Ok(bytes)
+	}).await.map_err(|error: tauri::Error| error.to_string())?
+		.map_err(|error: anyhow::Error| format!("{error:#}"))?;
+	Ok(IpcResponse::new(bytes))
+}
+
+#[tauri::command]
+pub fn cached_video_size(page_url: String, state: State<'_, Arc<Downloads>>) -> Result<u64, String> {
+	let result: Result<u64> = (|| {
+		let path: PathBuf = state.completed_file(&page_url)?;
+		let size: u64 = fs::metadata(path).context("无法读取缓存视频大小")?.len();
+		if size == 0 { bail!("本地缓存视频为空，请重新缓存"); }
+		Ok(size)
 	})();
 	result.map_err(|error: anyhow::Error| format!("{error:#}"))
 }

@@ -34,6 +34,8 @@ pub fn run() {
 			download::start_download,
 			download::delete_download,
 			download::cached_video,
+			download::cached_video_bytes,
+			download::cached_video_size,
 			download::download_directory,
 			download::get_watch_position,
 			download::save_watch_position
