@@ -38,7 +38,7 @@
 				:title = 'ani.name'
 				:subtitle = 'ani.date'
 				:description = 'ani.desc'
-				:src = 'ani.img'
+				:src = 'pic'
 			>
 			</var-card>
 			<div
@@ -72,7 +72,7 @@
 	</div>
 </template>
 <script setup lang = 'ts'>
-	import { watch, ref, onUnmounted, onMounted } from 'vue';
+	import { watch, ref, onUnmounted, onMounted, computed } from 'vue';
 	import { useRoute } from 'vue-router';
 	import { onBackButtonPress } from '@tauri-apps/api/app';
 
@@ -85,6 +85,7 @@
 
 	const ani = ref<AniInfo | undefined>(undefined);
 	const select = ref<number>(0);
+	const pic = computed(() => ani.value?.img.replace('img2.xfmanga.top', 'img.lie.ygopro3.cn') ?? '');
 
 	watch(() => route.query.url, (url) => {
 		get_ani(url as string).then(i => {

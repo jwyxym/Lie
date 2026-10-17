@@ -1,13 +1,14 @@
 <template>
 	<var-card
 		:title = 'item.name'
-		:src = 'item.img'
+		:src = 'pic'
 		:subtitle = 'item.count ?? item.desc'
 		layout = 'row'
 		@click = 'select'
 	/>
 </template>
 <script setup lang = 'ts'>
+	import { computed } from 'vue';
 	import { useRoute, type RouteLocationNormalizedLoaded } from 'vue-router';
 	import { type Item } from '@/script/invoke';
 	import { useTravel } from '@/script/travel';
@@ -18,6 +19,8 @@
 		navigate? : boolean;
 	}>(), { navigate: true });
 	const emit : (event : 'select') => void = defineEmits<{ select : []; }>();
+
+	const pic = computed(() => props.item.img.replace('img2.xfmanga.top', 'img.lie.ygopro3.cn'))
 
 	const { to_ani } = useTravel();
 	const select = () : void => {
