@@ -1,4 +1,4 @@
-use super::{AGENT, NEXT_BASE_URL, next::{PUBLISHABLE_KEY, read_props}, read_response};
+use super::{AGENT, NEXT_BASE_URL, fetch_text, next::{PUBLISHABLE_KEY, read_props}};
 use anyhow::{Context, Error, anyhow};
 use scraper::Html;
 use serde::Deserialize;
@@ -39,10 +39,7 @@ pub async fn video(url: String) -> Result<String, Error> {
 	}
 	let anime_id = path[1].parse::<u64>().context("invalid anime ID")?;
 	let episode_id = path[3].parse::<u64>().context("invalid episode ID")?;
-	let response = AGENT.get(page_url.as_str())
-		.config().timeout_global(Some(Duration::from_secs(30))).build()
-		.call()?;
-	let html = read_response(response)?;
+	let html: String = fetch_text(page_url.as_str()).await?;
 	let document = Html::parse_document(&html);
 	let props = read_props(&document, |value| {
 		value.get("episodeId").is_some()
@@ -82,9 +79,9 @@ pub async fn video(url: String) -> Result<String, Error> {
 		.header("Authorization", &format!("Bearer {PUBLISHABLE_KEY}"))
 		.header("Origin", NEXT_BASE_URL)
 		.header("Referer", page_url.as_str())
-		.send(body.as_str())?;
+		.send(body.as_str()).context("请求播放地址接口失败")?;
 	let status = response.status();
-	let content = response.into_body().read_to_string()?;
+	let content: String = response.into_body().read_to_string().context("读取播放地址接口响应失败")?;
 	let result: Value = serde_json::from_str(&content)
 		.map_err(|_| anyhow!("invalid playback API response (HTTP {status})"))?;
 	if !status.is_success() || result["ok"].as_bool() != Some(true) {

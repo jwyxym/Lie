@@ -11,7 +11,7 @@
 				<var-cell v-for = 'item in selectedGroup.items' :key = 'item.id' :title = 'item.episodeTitle' border ripple @click = 'selectItem(item)'>
 					<template #description>
 						<div class = 'status'>{{ downloadStatus(item) }}</div>
-						<progress v-if = 'item.status === "downloading"' :value = 'progressValue(item)' :max = '1'/>
+						<progress v-if = 'item.status === "downloading" || item.status === "merging"' :value = 'progressValue(item)' :max = '1'/>
 					</template>
 					<template #extra>
 						<div class = 'actions'>
@@ -119,8 +119,11 @@
 		catch (error : unknown) { Snackbar.error(String(error)); }
 		finally { await refresh(); state.busy = false; }
 	};
-	const progressValue = (item : Download) : number | undefined => item.totalSegments > 0
-		? item.completedSegments / item.totalSegments : item.totalBytes ? item.downloadedBytes / item.totalBytes : undefined;
+	const progressValue = (item : Download) : number | undefined => {
+		if (item.status === 'merging') return item.mergeProgress === null ? undefined : item.mergeProgress / 100;
+		return item.totalSegments > 0 ? item.completedSegments / item.totalSegments
+			: item.totalBytes ? item.downloadedBytes / item.totalBytes : undefined;
+	};
 	onMounted(async () : Promise<void> => {
 		void poll();
 		try { state.directory = await downloadDirectory(); }

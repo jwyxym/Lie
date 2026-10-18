@@ -1,8 +1,5 @@
 use anyhow::{Context, Result, anyhow, bail};
-use hls_transmux::{
-	CancelToken, HlsInput, OutputFormat, SourceLocation,
-	TransmuxOptions, TransmuxProgress, VariantSelection, transmux_hls_to_mp4_async,
-};
+use crate::hls::{CancelToken, Progress};
 use reqwest::{Client, Response};
 use rusqlite::{Connection, OptionalExtension, Row, Statement, params};
 use serde::{Deserialize, Serialize};
@@ -35,6 +32,7 @@ pub struct Download {
 	total_bytes: Option<i64>,
 	completed_segments: i64,
 	total_segments: i64,
+	merge_progress: Option<u8>,
 	error: String,
 }
 
@@ -86,7 +84,7 @@ pub struct Downloads {
 	slots: Arc<Semaphore>,
 }
 
-const COLUMNS: &str = "id, anime_id, episode_id, anime_title, episode_title, source, page_url, status, downloaded_bytes, total_bytes, completed_segments, total_segments, error, cover_url";
+const COLUMNS: &str = "id, anime_id, episode_id, anime_title, episode_title, source, page_url, status, downloaded_bytes, total_bytes, completed_segments, total_segments, error, cover_url, merge_progress";
 
 #[cfg(target_os = "android")]
 mod android_background {
@@ -203,6 +201,7 @@ fn read_download(row: &Row<'_>) -> rusqlite::Result<Download> {
 		page_url: row.get(6)?, status: row.get(7)?, downloaded_bytes: row.get(8)?,
 		total_bytes: row.get(9)?, completed_segments: row.get(10)?,
 		total_segments: row.get(11)?, error: row.get(12)?, cover_url: row.get(13)?,
+		merge_progress: row.get(14)?,
 	})
 }
 
@@ -227,6 +226,7 @@ impl Downloads {
 				downloaded_bytes INTEGER NOT NULL DEFAULT 0, total_bytes INTEGER,
 				completed_segments INTEGER NOT NULL DEFAULT 0,
 				total_segments INTEGER NOT NULL DEFAULT 0,
+				merge_progress INTEGER,
 				error TEXT NOT NULL DEFAULT '',
 				UNIQUE(anime_id, episode_id)
 			);
@@ -238,13 +238,16 @@ impl Downloads {
 			);
 			UPDATE downloads SET status='failed', error='下载被中断，请重试'
 			WHERE status IN ('queued', 'downloading', 'merging');")?;
-		let has_cover: bool = {
+		let column_names: Vec<String> = {
 			let mut columns: Statement<'_> = db.prepare("PRAGMA table_info(downloads)")?;
 			let names: Vec<String> = columns.query_map([], |row: &Row<'_>| row.get(1))?.collect::<rusqlite::Result<_>>()?;
-			names.iter().any(|name: &String| name == "cover_url")
+			names
 		};
-		if !has_cover {
+		if !column_names.iter().any(|name: &String| name == "cover_url") {
 			db.execute_batch("ALTER TABLE downloads ADD COLUMN cover_url TEXT NOT NULL DEFAULT '';")?;
+		}
+		if !column_names.iter().any(|name: &String| name == "merge_progress") {
+			db.execute_batch("ALTER TABLE downloads ADD COLUMN merge_progress INTEGER;")?;
 		}
 		let manager: Self = Self {
 			db: Mutex::new(db), jobs: Mutex::new(HashMap::new()), directory,
@@ -316,13 +319,13 @@ impl Downloads {
 		Ok(())
 	}
 
-	fn progress(&self, id: i64, bytes: u64, total: Option<u64>, segments: usize, count: usize, status: &str) -> Result<()> {
+	fn progress(&self, id: i64, bytes: u64, total: Option<u64>, segments: usize, count: usize, status: &str, merge_progress: Option<u8>) -> Result<()> {
 		let bytes: i64 = bytes.try_into()?;
 		let total: Option<i64> = total.map(i64::try_from).transpose()?;
 		let segments: i64 = segments.try_into()?;
 		let count: i64 = count.try_into()?;
-		lock(&self.db)?.execute("UPDATE downloads SET downloaded_bytes=MAX(downloaded_bytes,?2), total_bytes=?3, completed_segments=?4, total_segments=?5, status=?6 WHERE id=?1 AND status!='deleting'",
-			params![id, bytes, total, segments, count, status])?;
+		lock(&self.db)?.execute("UPDATE downloads SET downloaded_bytes=MAX(downloaded_bytes,?2), total_bytes=?3, completed_segments=?4, total_segments=?5, status=?6, merge_progress=?7 WHERE id=?1 AND status!='deleting'",
+			params![id, bytes, total, segments, count, status, merge_progress])?;
 		Ok(())
 	}
 
@@ -353,7 +356,7 @@ impl Downloads {
 			db.execute("INSERT INTO downloads (anime_id, episode_id, anime_title, episode_title, source, page_url, cover_url) VALUES (?1,?2,?3,?4,?5,?6,?7)
 				ON CONFLICT(anime_id, episode_id) DO UPDATE SET anime_title=excluded.anime_title, episode_title=excluded.episode_title,
 				source=excluded.source, page_url=excluded.page_url, cover_url=CASE WHEN excluded.cover_url='' THEN downloads.cover_url ELSE excluded.cover_url END,
-				status='queued', error='', downloaded_bytes=0, total_bytes=NULL, completed_segments=0, total_segments=0",
+				status='queued', error='', downloaded_bytes=0, total_bytes=NULL, completed_segments=0, total_segments=0, merge_progress=NULL",
 				params![anime, episode, request.anime_title, request.episode_title, source, request.page_url, request.cover_url])?;
 			db.query_row("SELECT id FROM downloads WHERE anime_id=?1 AND episode_id=?2", params![anime, episode], |row: &Row<'_>| row.get(0))?
 		};
@@ -384,7 +387,7 @@ impl Downloads {
 			_ = job.cancelled() => bail!("下载已取消"),
 			permit = self.slots.clone().acquire_owned() => permit?,
 		};
-		self.progress(id, 0, None, 0, 0, "downloading")?;
+		self.progress(id, 0, None, 0, 0, "downloading", None)?;
 		let resolver: JoinHandle<Result<String>> = tauri::async_runtime::spawn_blocking(move || {
 			tauri::async_runtime::block_on(crate::get::video(page_url))
 		});
@@ -407,21 +410,16 @@ impl Downloads {
 		let hls: bool = Url::parse(&url)?.path().to_ascii_lowercase().ends_with(".m3u8")
 			|| response.url().path().to_ascii_lowercase().ends_with(".m3u8") || content_type.contains("mpegurl");
 		if hls {
-			drop(response);
 			let manager: Arc<Self> = self.clone();
-			let source: Arc<crate::hls::HlsSource> = Arc::new(crate::hls::HlsSource::new(client));
-			let options: TransmuxOptions = TransmuxOptions {
-				variant: Some(VariantSelection::HighestBandwidth),
-				output_format: OutputFormat::StreamingMp4,
-				cancel: Some(job.clone()),
-				on_progress: Some(Arc::new(move |event: TransmuxProgress| {
-					let status: &str = if event.completed_segments == event.total_segments { "merging" } else { "downloading" };
-					let _ = manager.progress(id, event.downloaded_bytes, None, event.completed_segments, event.total_segments, status);
-				})),
-				..TransmuxOptions::default()
+			let progress: Arc<dyn Fn(Progress) + Send + Sync> = Arc::new(move |event: Progress| {
+				let status: &str = if event.completed_segments == event.total_segments { "merging" } else { "downloading" };
+				let _ = manager.progress(id, event.downloaded_bytes, None, event.completed_segments, event.total_segments, status, event.merge_progress);
+			});
+			let outcome: Result<()> = tokio::select! {
+				_ = job.cancelled() => bail!("下载已取消"),
+				result = crate::hls::download(client, response, &temporary, progress) => result,
 			};
-			transmux_hls_to_mp4_async(HlsInput::custom(source, SourceLocation::Url(Url::parse(&url)?)), &temporary, options)
-				.await.context("m3u8 合并失败")?;
+			outcome.context("m3u8 下载或合并失败")?;
 		} else {
 			self.download_mp4(id, response, &temporary, &job).await?;
 		}
@@ -430,7 +428,7 @@ impl Downloads {
 		if size == 0 { bail!("下载的视频为空"); }
 		tokio::fs::rename(&temporary, &output).await?;
 		let size: i64 = size.try_into()?;
-		lock(&self.db)?.execute("UPDATE downloads SET status='completed', downloaded_bytes=?2, total_bytes=?2, error='' WHERE id=?1 AND status!='deleting'", params![id, size])?;
+		lock(&self.db)?.execute("UPDATE downloads SET status='completed', downloaded_bytes=?2, total_bytes=?2, merge_progress=100, error='' WHERE id=?1 AND status!='deleting'", params![id, size])?;
 		Ok(())
 	}
 
@@ -440,7 +438,7 @@ impl Downloads {
 		let mut downloaded: u64 = 0;
 		let mut updated: Instant = Instant::now();
 		let mut prefix: Vec<u8> = Vec::new();
-		self.progress(id, 0, total, 0, 0, "downloading")?;
+		self.progress(id, 0, total, 0, 0, "downloading", None)?;
 		loop {
 			let chunk: Option<bytes::Bytes> = tokio::select! {
 				_ = job.cancelled() => bail!("下载已取消"),
@@ -451,7 +449,7 @@ impl Downloads {
 			file.write_all(&chunk).await?;
 			downloaded += chunk.len() as u64;
 			if updated.elapsed() >= Duration::from_millis(500) {
-				self.progress(id, downloaded, total, 0, 0, "downloading")?;
+				self.progress(id, downloaded, total, 0, 0, "downloading", None)?;
 				updated = Instant::now();
 			}
 		}

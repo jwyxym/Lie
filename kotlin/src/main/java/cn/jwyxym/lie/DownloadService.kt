@@ -151,13 +151,14 @@ class DownloadService : Service() {
 		val manager = NotificationManagerCompat.from(this)
 		if (!manager.areNotificationsEnabled()) return
 		val percent = when {
+			task.status == "merging" -> task.mergeProgress ?: -1
 			task.totalSegments > 0 -> (task.completedSegments.toDouble() / task.totalSegments * 100).toInt()
 			(task.totalBytes ?: 0) > 0 -> (task.downloadedBytes.toDouble() / task.totalBytes!! * 100).toInt()
 			else -> -1
 		}.coerceIn(-1, 100)
 		val text = when (task.status) {
 			"queued" -> "等待下载"
-			"merging" -> "正在合并视频 · ${bytes(task.downloadedBytes)}"
+			"merging" -> if (percent < 0) "正在分析视频封装信息" else "正在合并视频 · $percent%"
 			"completed" -> "缓存完成 · ${bytes(task.downloadedBytes)}"
 			"failed" -> if (task.error.contains("取消")) "下载已取消" else "缓存失败：${task.error}"
 			else -> if (percent >= 0) "$percent% · ${bytes(task.downloadedBytes)}" else "正在下载 · ${bytes(task.downloadedBytes)}"
@@ -165,7 +166,7 @@ class DownloadService : Service() {
 		val notification = builder("${task.animeTitle} · ${task.episodeTitle}", text)
 			.setOngoing(active).setAutoCancel(!active)
 		if (active) {
-			notification.setProgress(100, percent.coerceAtLeast(0), percent < 0 || task.status != "downloading")
+			notification.setProgress(100, percent.coerceAtLeast(0), percent < 0 || task.status == "queued")
 			val cancel = Intent(this, DownloadService::class.java).apply {
 				action = CANCEL
 				data = android.net.Uri.parse("lie-download://cancel/${task.id}")

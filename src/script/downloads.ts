@@ -14,6 +14,7 @@ export interface Download {
 	totalBytes : number | null;
 	completedSegments : number;
 	totalSegments : number;
+	mergeProgress : number | null;
 	error : string;
 }
 
@@ -73,7 +74,8 @@ export const formatBytes = (bytes : number) : string => {
 
 export const downloadStatus = (item : Download) : string => {
 	if (item.status === 'queued') return '等待下载';
-	if (item.status === 'merging') return '正在合并完整视频';
+	if (item.status === 'merging') return item.mergeProgress === null
+		? '正在分析视频封装信息' : `正在合并完整视频 · ${item.mergeProgress}%`;
 	if (item.status === 'completed') return `已缓存 · ${formatBytes(item.downloadedBytes)}`;
 	if (item.status === 'failed') return `缓存失败：${item.error}`;
 	if (item.status === 'deleting') return '正在停止并删除';

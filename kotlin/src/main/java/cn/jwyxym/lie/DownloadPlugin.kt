@@ -35,6 +35,7 @@ class DownloadTask {
 	var totalBytes: Long? = null
 	var completedSegments: Long = 0
 	var totalSegments: Long = 0
+	var mergeProgress: Int? = null
 	var error: String = ""
 
 	fun active(): Boolean = status == "queued" || status == "downloading" || status == "merging"
