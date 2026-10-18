@@ -1,18 +1,18 @@
 <template>
-	<router-view/>
+	<travel-view/>
 </template>
 <script setup lang = 'ts'>
 	import { onBeforeMount, onMounted, onUnmounted } from 'vue';
 	import { Themes, StyleProvider } from '@varlet/ui';
 	import { invoke } from '@tauri-apps/api/core';
-	import { useRouter, type Router } from 'vue-router';
+	import { TravelView, useTravel } from '@/script/travel';
 
-	const router : Router = useRouter();
+	const { to_cache } = useTravel();
 	const openDownloads = async () : Promise<void> => {
 		if (!window.LieAndroid && !/Android/i.test(navigator.userAgent)) return;
 		try {
 			if (await invoke<boolean>('take_download_notification')) {
-				await router.push({ name : 'home', query : { home : '3' } });
+				await to_cache();
 			}
 		} catch (error : unknown) { console.error('读取下载通知跳转失败', error); }
 	};

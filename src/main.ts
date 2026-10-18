@@ -1,6 +1,6 @@
 import { createApp } from "vue";
 import App from "./App.vue";
-import router from "./router";
+import { router } from './script/travel';
 import Varlet from '@varlet/ui';
 import '@varlet/ui/es/style.mjs';
 //@ts-ignore

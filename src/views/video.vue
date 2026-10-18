@@ -41,18 +41,17 @@
 			class = 'no-scrollbar'
 		>
 			<var-button
-				v-for = '(i, v) in video.list[parseInt(route.query.page as string)]'
-				:type = "i.url === route.query.url ? 'primary' : 'default'"
+				v-for = '(i, v) in video.list[query.page]'
+				:type = "i.url === query.url ? 'primary' : 'default'"
 				@click = 'selectEpisode(i)'
 			>
-				{{ route.query.offline === '1' ? i.name : `第${v + 1}集` }}
+				{{ query.offline ? i.name : `第${v + 1}集` }}
 			</var-button>
 		</var-space>
 	</div>
 </template>
 <script setup lang = 'ts'>
 	import { computed, watch, reactive, onMounted, onUnmounted, type ComputedRef } from 'vue';
-	import { useRoute, useRouter, type Router, type RouteLocationNormalizedLoaded } from 'vue-router';
 	import { onBackButtonPress } from '@tauri-apps/api/app';
 	import { Snackbar } from '@varlet/ui';
 
@@ -62,24 +61,12 @@
 	import themes from '@/script/themes';
 	import { cachedVideo, readCachedVideo, listDownloads, type Download, type DownloadRequest } from '@/script/downloads';
 
-	const { to_video, to_ani } = useTravel();
-	const route : RouteLocationNormalizedLoaded = useRoute();
-	const router : Router = useRouter();
+	const { query, select_episode, leave_video } = useTravel();
 	const leaveVideo = () : void => {
-		if (route.query.offline === '1') {
-			const series : string | undefined = typeof route.query.url === 'string' ? new URL(route.query.url).pathname.split('/')[2] : undefined;
-			void router.push({ name: 'home', query: { home: '3', series } });
-			return;
-		}
-		to_ani(route.query.back as string, route.query.home as string, route.query.day as string, route.query.search as string);
+		void leave_video();
 	};
 	const selectEpisode = (episode : { name : string; url : string; }) : void => {
-		if (route.query.offline === '1') {
-			void router.replace({ name: 'video', query: { ...route.query, url: episode.url, episode: episode.name } });
-			return;
-		}
-		to_video(episode.url, route.query.back as string, route.query.name as string,
-			parseInt(route.query.page as string), route.query.home as string, route.query.day as string, route.query.search as string, video.cover);
+		void select_episode(episode, video.cover);
 	};
 
 	const video : { list : Anthology; cover : string; src : string; pageUrl : string; title : string; local : boolean; error : string; } = reactive({
@@ -93,7 +80,7 @@
 	});
 	let disposed : boolean = false;
 	const cacheRequest : ComputedRef<DownloadRequest | undefined> = computed(() : DownloadRequest | undefined => {
-		const url : unknown = route.query.url;
+		const url : string = query.value.url;
 		if (typeof url !== 'string' || video.local || !video.title) return undefined;
 		const episode : { name : string; url : string; } | undefined = video.list.flat().find((item : { name : string; url : string; }) : boolean => new URL(item.url).pathname === new URL(url).pathname);
 		return episode ? { pageUrl: url, animeTitle: video.title, episodeTitle: episode.name, coverUrl: video.cover } : undefined;
@@ -117,7 +104,7 @@
 		listener?.unregister();
 	});
 
-	watch(() : readonly unknown[] => [route.query.url, route.query.back, route.query.name, route.query.offline, route.query.episode, route.query.cover] as const,
+	watch(() : readonly unknown[] => [query.value.url, query.value.back, query.value.name, query.value.offline, query.value.episode, query.value.cover] as const,
 		async function ([url, back, name] : readonly unknown[], _previous : readonly unknown[] | undefined, onCleanup : (cleanup : () => void) => void) : Promise<void> {
 			let blobUrl : string | undefined;
 			const controller : AbortController = new AbortController();
@@ -125,7 +112,7 @@
 				controller.abort();
 				if (blobUrl) URL.revokeObjectURL(blobUrl);
 			});
-			if (typeof url !== 'string')
+			if (typeof url !== 'string' || !url)
 				return;
 
 			const id : number = ++ request;
@@ -135,9 +122,9 @@
 			video.error = '';
 			video.local = false;
 			video.title = typeof name === 'string' ? name : '';
-			video.cover = typeof route.query.cover === 'string' ? route.query.cover : '';
-			const offline : boolean = route.query.offline === '1';
-			if (offline && typeof route.query.episode === 'string') video.title += ` · ${route.query.episode}`;
+			video.cover = query.value.cover;
+			const offline : boolean = query.value.offline;
+			if (offline && query.value.episode) video.title += ` · ${query.value.episode}`;
 			try {
 				const local : string | undefined = await cachedVideo(url, video.cover);
 				if (id !== request) return;
@@ -168,7 +155,7 @@
 				Snackbar.error(String(error));
 			}
 
-			const aniRequest : ReturnType<typeof get_ani> = typeof back === 'string'
+			const aniRequest : ReturnType<typeof get_ani> = typeof back === 'string' && back
 				? get_ani(back)
 				: Promise.resolve(undefined);
 			if (!video.local) {

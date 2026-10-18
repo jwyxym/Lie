@@ -9,11 +9,9 @@
 </template>
 <script setup lang = 'ts'>
 	import { computed } from 'vue';
-	import { useRoute, type RouteLocationNormalizedLoaded } from 'vue-router';
 	import { type Item } from '@/script/invoke';
 	import { useTravel } from '@/script/travel';
 
-	const route : RouteLocationNormalizedLoaded = useRoute();
 	const props : { item : Item; navigate : boolean; } = withDefaults(defineProps<{
 		item : Item;
 		navigate? : boolean;
@@ -25,8 +23,7 @@
 	const { to_ani } = useTravel();
 	const select = () : void => {
 		if (props.navigate === false) { emit('select'); return; }
-		to_ani(props.item.url, route.query.home as string | undefined ?? '0',
-			route.query.day as string | undefined ?? '0', route.query.search as string | undefined ?? '');
+		void to_ani(props.item.url);
 	};
 </script>
 <style scoped lang = 'scss'>

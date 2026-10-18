@@ -27,7 +27,7 @@
 </template>
 <script setup lang = 'ts'>
 	import { computed, watch, onMounted, onUnmounted, reactive, type ComputedRef } from 'vue';
-	import { useRoute, useRouter, type Router, type RouteLocationNormalizedLoaded } from 'vue-router';
+	import { useTravel } from '@/script/travel';
 	import { Dialog, Snackbar } from '@varlet/ui';
 	import Card from '@/ui/card.vue';
 	import { type Item } from '@/script/invoke';
@@ -37,8 +37,7 @@
 	interface CacheState {
 		items : Download[]; directory : string; loading : boolean; busy : boolean; error : string;
 	}
-	const router : Router = useRouter();
-	const route : RouteLocationNormalizedLoaded = useRoute();
+	const { query, to_cache, to_cached_video } = useTravel();
 	const emit : (event : 'header', header : DownloadHeader) => void = defineEmits<{ header : [header : DownloadHeader]; }>();
 	const state : CacheState = reactive<CacheState>({ items: [], directory: '', loading: true, busy: false, error: '' });
 	const groups : ComputedRef<Group[]> = computed(() : Group[] => {
@@ -54,19 +53,17 @@
 		}
 		return [...grouped.values()];
 	});
-	const seriesId : ComputedRef<string> = computed(() : string => typeof route.query.series === 'string' ? route.query.series : '');
+	const seriesId : ComputedRef<string> = computed(() : string => query.value.series);
 	const selectedGroup : ComputedRef<Group | undefined> = computed(() : Group | undefined => groups.value.find((group : Group) : boolean => group.id === seriesId.value));
 	const seriesCard = (group : Group) : Item => ({
 		name: group.title, url: group.id, img: group.coverUrl,
 		count: `已缓存 ${group.items.filter((item : Download) : boolean => item.status === 'completed').length} 集 · 共 ${group.items.length} 集`
 	});
 	const openSeries = async (group : Group) : Promise<void> => {
-		await router.push({ name: 'home', query: { ...route.query, home: '3', series: group.id } });
+		await to_cache(group.id);
 	};
 	const backToSeries = async () : Promise<void> => {
-		const query : Record<string, string> = { home: '3' };
-		if (typeof route.query.search === 'string') query.search = route.query.search;
-		await router.replace({ name: 'home', query });
+		await to_cache('', true);
 	};
 	let timer : ReturnType<typeof setTimeout> | undefined;
 	let disposed : boolean = false;
@@ -86,10 +83,7 @@
 	};
 	const play = async (item : Download) : Promise<void> => {
 		try {
-			await router.push({ name: 'video', query: {
-				url: item.pageUrl, name: item.animeTitle, episode: item.episodeTitle,
-				offline: '1', home: '3', page: '0', cover: item.coverUrl
-			} });
+			await to_cached_video(item);
 		} catch (error : unknown) { Snackbar.error(String(error)); }
 	};
 	const selectItem = async (item : Download) : Promise<void> => {

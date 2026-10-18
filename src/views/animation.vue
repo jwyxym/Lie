@@ -8,11 +8,7 @@
 				<var-button
 					round
 					text
-					@click = 'to_home(
-						route.query.home as string,
-						route.query.day as string,
-						route.query.search as string
-					)'
+					@click = 'to_home()'
 				>
 					<var-icon
 						name = 'chevron-left'
@@ -56,15 +52,7 @@
 					<var-button
 						v-for = 'i in ani.links[select]'
 						type = 'primary'
-						@click = 'to_video(
-							i.url,
-							route.query.url as string,
-							ani.name, select,
-							route.query.home as string,
-							route.query.day as string,
-							route.query.search as string,
-							ani.img
-						)'
+						@click = 'to_video({ url : i.url, back : query.url, name : ani.name, page : select, cover : ani.img })'
 					>{{ i.name }}</var-button>
 				</var-space>
 			</div>
@@ -73,22 +61,20 @@
 </template>
 <script setup lang = 'ts'>
 	import { watch, ref, onUnmounted, onMounted, computed } from 'vue';
-	import { useRoute } from 'vue-router';
 	import { onBackButtonPress } from '@tauri-apps/api/app';
 
 	import { type AniInfo, get_ani } from '@/script/invoke';
 	import { useTravel } from '@/script/travel';
 	import themes from '@/script/themes';
 
-	const { to_video, to_home } = useTravel();
-	const route = useRoute();
+	const { query, to_video, to_home } = useTravel();
 
 	const ani = ref<AniInfo | undefined>(undefined);
 	const select = ref<number>(0);
 	const pic = computed(() => ani.value?.img.replace('img2.xfmanga.top', 'img.lie.ygopro3.cn') ?? '');
 
-	watch(() => route.query.url, (url) => {
-		get_ani(url as string).then(i => {
+	watch(() : string => query.value.url, (url : string) : void => {
+		get_ani(url).then((i : AniInfo | undefined) : void => {
 			ani.value = i;
 		});
 	}, { immediate : true });
@@ -97,11 +83,7 @@
 	onMounted(async () => {
 		listener = await onBackButtonPress((i) => {
 			if (i.canGoBack)
-				to_home(
-					route.query.home as string,
-					route.query.day as string,
-					route.query.search as string
-				);
+				void to_home();
 		});
 	});
 

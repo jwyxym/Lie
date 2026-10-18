@@ -4,13 +4,13 @@
 			:title = 'appBarTitle'
 			title-position = 'left'
 		>
-			<template v-if = 'page.ct === 3 && typeof route.query.series === "string"' #left>
+			<template v-if = 'page.ct === 3 && query.series' #left>
 				<var-button text round @click = 'backToCacheSeries'>
 					<var-icon name = 'chevron-left' :size = '24'/>
 				</var-button>
 			</template>
 			<template #right>
-				<var-icon v-if = 'page.ct === 3 && cacheHeader.seriesId === route.query.series && cacheHeader.remove'
+				<var-icon v-if = 'page.ct === 3 && cacheHeader.seriesId === query.series && cacheHeader.remove'
 					class = 'delete-cache-icon' name = 'trash-can-outline' :aria-disabled = 'cacheHeader.busy'
 					@click = '!cacheHeader.busy && cacheHeader.remove()'/>
 				<var-icon 
@@ -42,7 +42,6 @@
 </template>
 <script setup lang = 'ts'>
 	import { computed, watch, onMounted, onUnmounted, reactive, type ComputedRef } from 'vue';
-	import { useRoute, useRouter, type Router } from 'vue-router';
 	import { onBackButtonPress } from '@tauri-apps/api/app';
 	import { exit } from '@tauri-apps/plugin-process';
 	import { Snackbar } from '@varlet/ui';
@@ -57,31 +56,29 @@
 	import themes from '@/script/themes';
 	import { useTravel } from '@/script/travel';
 
-	const { to_home } = useTravel();
-	const route = useRoute();
-	const router : Router = useRouter();
+	const { query, to_home, to_cache } = useTravel();
 	const cacheHeader : DownloadHeader = reactive({ seriesId: '', title: '', busy: false });
 	const updateCacheHeader = (header : DownloadHeader) : void => { Object.assign(cacheHeader, header); };
 	const backToCacheSeries = () : void => {
-		void router.replace({ name: 'home', query: { home: '3', search: page.search } });
+		void to_cache('', true);
 	};
 	const page = reactive({
 		ct : computed({
-			get : () : number => parseInt(route.query.home as string | undefined ?? '0'),
+			get : () : number => query.value.home,
 			set : (i : number) : void => {
-				to_home(i.toString(), (i > 0 ? 0 : page.day).toString(), page.search);
+				void to_home(i);
 			}
 		}),
 		day : computed({
-			get : () : number => parseInt(route.query.day as string | undefined ?? '0'),
-			set : (i : number) => {
-				to_home('0', i.toString(), page.search);
+			get : () : number => query.value.day,
+			set : (i : number) : void => {
+				void to_home(0, i);
 			}
 		}),
 		search : computed({
-			get : () : string => route.query.search as string | undefined ?? '',
-			set : (i : string) => {
-				to_home('2', page.day.toString(), i);
+			get : () : string => query.value.search,
+			set : (i : string) : void => {
+				void to_home(2, page.day, i);
 			}
 		}),
 		schedule : {
@@ -92,7 +89,7 @@
 	const appBarTitle : ComputedRef<string> = computed(() : string => {
 		if (page.ct === 1) return '全部番剧';
 		if (page.ct === 2) return '搜素番剧';
-		if (page.ct === 3) return cacheHeader.seriesId === route.query.series && cacheHeader.title ? cacheHeader.title : '视频缓存';
+		if (page.ct === 3) return cacheHeader.seriesId === query.value.series && cacheHeader.title ? cacheHeader.title : '视频缓存';
 		return '追番周表';
 	});
 
@@ -107,7 +104,7 @@
 	let count = 0;
 	onMounted(async () => {
 		listener = await onBackButtonPress(() => {
-			if (page.ct === 3 && typeof route.query.series === 'string') {
+			if (page.ct === 3 && query.value.series) {
 				backToCacheSeries();
 				return;
 			}
